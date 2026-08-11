@@ -212,6 +212,7 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   <button class="btn" id="bExport">Export</button>
   <button class="btn" id="bImport">Import</button>
   <span id="syncPill" class="sync" title="Sync status">local only</span>
+  <button class="btn" id="bKeys" title="Firebase and Maps keys">Keys</button>
   <button class="btn" id="bAcct">Sign in</button>
 </header>
 
@@ -542,46 +543,38 @@ const money = v => (v===null||v===undefined||v==="") ? "—"
   : Math.round(v).toLocaleString("pl-PL")+" zł";
 
 /* ================================================================ seed */
-const OLX_CDN = "https://ireland.apollo.olxcdn.com/v1/files/";
 const SEED = [
-  { id:"seed-mogilska", added:1,
-    address:"rej. ul. Mogilskiej, Kraków (Grzegórzki)",
-    link:"https://www.olx.pl/d/oferta/2pok-35m2-mogilska-balkon-parking-3500all-CID3-ID1bIJPI.html",
-    availfrom:"2026-08-09", rent:2800, admin:600, util:120, area:35,
-    transmin:5, chain:"Lidl", bedroom:"Yes", nogas:"Yes", elevator:"Yes", balcony:"Yes",
-    notes:"OLX, agency. 'Dostępne od zaraz'. Czynsz 600 covers water + waste; electricity ~70 zł "+
-          "plus compulsory fibre 49 zł, so media 120 zł is an estimate. Kaucja required, amount "+
-          "not stated. Agency provision applies, amount not stated. Induction hob. 4th floor, lift.",
-    photos:["vhd72dla4iwt1-PL","f5j89qrzc6ql-PL","idyv7x5mpcnu-PL","v6nq65af0vhn1-PL",
-            "ilbq0wp8i5763-PL","sscgafdvqbyi-PL","n8fcp2x3ee9y1-PL","6tqcff9phqor2-PL"]
-           .map(s=>OLX_CDN+s+"/image") },
-  { id:"seed-kaskada", added:2,
-    address:"Kaskada, ul. Dobrego Pasterza / Rondo Barei, Kraków (Prądnik Czerwony)",
-    link:"https://www.olx.pl/d/oferta/2-pok-rondo-barei-serenada-duzy-taras-CID3-ID1aWfoz.html",
-    rent:2800, admin:586, util:200, kaucja:4000, provision:2800, area:41,
-    heating:"Yes", nogas:"Yes", elevator:"Yes", balcony:"Yes",
-    notes:"OLX, agency. AVAILABILITY NOT STATED — ask first. 'W budynku nie ma gazu', 'ogrzewanie "+
-          "i woda z sieci miejskiej'. Kaucja 4000 zł. Provision = one month's rent (2800 zł), "+
-          "which is what breaks the budget. Media 200 zł estimated. Large terrace, 2nd floor.",
-    photos:["t85etzj0bxio3-PL","2y7o0g9umsfq3-PL","xwzaip5xufjv1-PL","p94bdjh9wr1a2-PL",
-            "3kbetnykmrb72-PL","vyh6xhcnztwv3-PL","ha8u5vdxv6mv1-PL","9a0yz7kbzzx31-PL"]
-           .map(s=>OLX_CDN+s+"/image") },
-  { id:"seed-quattro", added:3,
-    address:"Kraków, Prądnik Czerwony (near Quattro Park)",
-    link:"https://www.otodom.pl/pl/oferta/dwupokojowe-wysoki-standard-blisko-quattro-park-ID34pWq",
-    availfrom:"2026-09-01", rent:2700, admin:700, util:200, kaucja:3600, area:40,
-    heating:"Yes", balcony:"Yes", appliances:"3", lat:50.08821, lon:19.971037,
-    notes:"Otodom. 'Available from 2026/09/01' — exactly on the cut-off, no slack. Heating miejskie. "+
-          "Dishwasher, fridge, washer, oven, hob, furniture. Garage, intercom. Media 200 zł estimated.",
-    photos:[] },
-  { id:"seed-przytulne", added:4,
-    address:"Kraków, Prądnik Czerwony",
-    link:"https://www.otodom.pl/pl/oferta/przytulne-2-pokoje-mieszkanie-z-balkonem-krakow-pradnik-czerwony-ID4Cwxr",
-    rent:2800, admin:600, util:200, kaucja:2800, area:42,
-    balcony:"Yes", appliances:"3", lat:50.07958, lon:19.95969,
-    notes:"Otodom. AVAILABILITY NOT STATED — ask first. Dishwasher, fridge, washer, oven, hob, TV, "+
-          "furniture. Heating type not given. Kaucja 2800 zł. Media 200 zł estimated.",
-    photos:[] }
+  { id:"seed-fabryczna", added:1786482449930, photos:[],
+    address:"ul. Fabryczna",
+    link:"https://www.otodom.pl/pl/oferta/pelne-naturalnego-swiatla-w-bardzo-atrakcyjnej-lokalizacji-ID4CyGD",
+    availfrom:"2026-09-01", messaged:"No", presched:"No",
+    rent:"2600", admin:"730", util:"100", kaucja:"2600", area:"47",
+    chain:"Lidl", grocmin:"5", transmin:"5", parkmin:"15", windows:"East", quiet:"2",
+    bedroom:"Yes", heating:"Yes", desk:"Yes", bed:"Yes", newwin:"Yes", nogas:"Yes",
+    elevator:"Yes", kitchen:"2", sun:"3", appliances:"3", modern:"3",
+    contract:"Standardowa", bathtub:"No", wardrobe:"No", balcony:"Yes",
+    travel:{},
+    notes:"Beton building - how's it in winter?\nLocation - how's it going there by bike?\n"+
+          "\nStill to check: piano space, damp, neighbours, bike storage, Play internet, "+
+          "furniture flexibility. Travel times not measured yet."
+  },
+  { id:"seed-wilenska", added:1786477866592, photos:[],
+    address:"ul. Wileńska 7E",
+    link:"https://www.olx.pl/d/oferta/mieszkanie-47-m2-od-wlasciciela-krakow-ul-wilenska-7e-CID3-ID1bO6XV.html",
+    availfrom:"2026-08-11", messaged:"No", presched:"No",
+    rent:"2500", admin:"1000", util:"100", provision:"0", kaucja:"2500", area:"47",
+    chain:"Lewiatan", grocmin:"4", transmin:"1", parkmin:"5",
+    windows:"Other / unknown",
+    bedroom:"Yes", heating:"Yes", desk:"Yes", piano:"Yes", bed:"Yes", newwin:"Yes",
+    nogas:"Yes", elevator:"No", bike:"Yes", kitchen:"3", sun:"3", appliances:"3",
+    modern:"2", contract:"Standardowa", bathtub:"Yes", wardrobe:"No", balcony:"Yes",
+    travel:{},
+    notes:"The building seems to be quite old.\nI love the size of the kitchen and that it's "+
+          "separate.\nI love that there's a bathtub.\nThe same problem as in this apartment "+
+          "with things in the bathroom, there's not enough space for putting them down.\n"+
+          "\nCzynsz of 1000 zl is what puts this 700 zl over the yearly budget. Area 47 m2 "+
+          "taken from the listing title. Still to check: damp, quiet, neighbours, Play internet."
+  }
 ];
 
 let S = load();
@@ -1034,7 +1027,20 @@ function dl(text,name,mime){ const a=document.createElement("a");
 const GKEY = "apartment-hunter-gmaps-key";
 const getKey = () => { try{ return (CFG.mapsApiKey||"") || localStorage.getItem(GKEY)
     || localStorage.getItem("krk-gmaps-key") || ""; }catch(e){ return CFG.mapsApiKey||""; } };
-let mapsLoading = null;
+let mapsLoading = null, mapsAuthFailed = false;
+/* Google calls this global when the key is rejected — otherwise the only clue
+   is a console message and a grey box, which is a miserable way to find out. */
+window.gm_authFailure = function(){
+  mapsAuthFailed = true;
+  const host = $("#mapBox");
+  const origin = location.origin + (location.origin.endsWith("/") ? "" : "/") + "*";
+  const msg = `Google rejected the Maps key for this address.<br><br>
+    Add <code>${esc(origin)}</code> to the key's<br>
+    <b>Application restrictions → Websites</b> list in Google Cloud Console,
+    then wait a few minutes and reload.`;
+  if(host) host.innerHTML = `<div class="empty" style="line-height:1.7">${msg}</div>`;
+  setSync("err","maps key rejected");
+};
 function loadMaps(key){
   if(window.google?.maps?.importLibrary) return Promise.resolve();
   if(mapsLoading) return mapsLoading;
@@ -1129,7 +1135,11 @@ async function calcTravel(c){
       "\n\nGoogle does not offer every mode in every city; type those in by hand.");
   }catch(e){
     say("Calculate");
-    alert("Travel times failed:\n\n" + e.message);
+    alert(mapsAuthFailed
+      ? "Google rejected the Maps key for " + location.origin + ".\n\n" +
+        "Add " + location.origin + "/* to the key's Application restrictions → Websites " +
+        "list in Google Cloud Console, wait a few minutes, then reload."
+      : "Travel times failed:\n\n" + e.message);
   }
 }
 
@@ -1223,7 +1233,9 @@ const EXTRACTOR = `(() => {
    else can read or write it, which is what makes a public page safe to host.
    Conflict handling is last-write-wins on a timestamp — deliberately simple.
    Edit the same flat on two devices while offline and the later save wins. */
-const FB_VER = "10.14.1";
+/* gstatic keeps every published SDK version, but if one 404s the whole sync
+   dies silently — so try a couple in order and report which failed. */
+const FB_VERS = ["10.14.1", "11.0.2", "10.12.5"];
 const FB = {app:null, auth:null, db:null, uid:null, unsub:null, ready:false};
 let syncTimer = null, applyingRemote = false;
 
@@ -1243,11 +1255,20 @@ async function initFirebase(){
   if(!conf){ setSync("", "local only"); return; }
   try{
     setSync("busy","connecting…");
-    const [{initializeApp}, authMod, fsMod] = await Promise.all([
-      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`),
-      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-auth.js`),
-      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`)
-    ]);
+    let mods = null, lastErr = null;
+    for(const v of FB_VERS){
+      try{
+        mods = await Promise.all([
+          import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`),
+          import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`),
+          import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`)
+        ]);
+        break;
+      }catch(e){ lastErr = e; console.warn("Firebase SDK "+v+" unavailable", e); }
+    }
+    if(!mods) throw new Error("could not load the Firebase SDK from gstatic — "+
+      (lastErr?.message||"unknown error"));
+    const [{initializeApp}, authMod, fsMod] = mods;
     FB.app  = initializeApp(conf);
     FB.auth = authMod.getAuth(FB.app);
     FB.db   = fsMod.getFirestore(FB.app);
@@ -1344,23 +1365,32 @@ $("#bAcct").onclick = async () => {
 };
 function setupDialog(){
   const c = fbConf() || CFG.firebase || {};
-  dialog("Connect Firebase", `
-    <div class="note">Firebase Console → Project settings → Your apps → Web app → SDK setup.
-    Only the API key and App ID are missing; the rest follow from the project.
-    Saved here they stay in this browser — put them in <code>config.js</code> and commit
-    to make them apply everywhere.</div>
-    <div class="f"><label>apiKey</label><input id="cKey" value="${esc(c.apiKey||"")}"></div>
-    <div class="f" style="margin-top:8px"><label>appId</label>
+  dialog("Keys", `
+    <div class="note">Stored in this browser only, never written into the page — so nothing
+    ends up in the repo. You will enter them once per device. Copy
+    <code>config.example.js</code> to <code>config.js</code> if you would rather set them
+    per checkout; that file is gitignored.</div>
+    <div class="note warn">These reach the browser at runtime either way, so they are not
+    really secret. What protects you is <code>firestore.rules</code> and the Maps key's
+    referrer restriction.</div>
+    <div class="f"><label>Firebase apiKey</label><input id="cKey" value="${esc(c.apiKey||"")}"></div>
+    <div class="f" style="margin-top:8px"><label>Firebase appId</label>
       <input id="cApp" value="${esc(c.appId||"")}" placeholder="1:1085228370812:web:…"></div>
-    <div class="f" style="margin-top:8px"><label>projectId</label>
-      <input id="cProj" value="${esc(c.projectId||"")}"></div>`,
-    [{label:"Cancel"},{label:"Save & connect", primary:true, act(){
+    <div class="f" style="margin-top:8px"><label>Firebase projectId</label>
+      <input id="cProj" value="${esc(c.projectId||"")}"></div>
+    <div class="f" style="margin-top:8px"><label>Google Maps browser key</label>
+      <input id="cMaps" value="${esc(getKey())}" placeholder="AIza…"></div>`,
+    [{label:"Cancel"},{label:"Save", primary:true, act(){
+      const mk = $("#cMaps").value.trim();
+      try{ if(mk) localStorage.setItem(GKEY, mk); }catch(e){}
+      const proj = $("#cProj").value.trim();
       const conf = {apiKey:$("#cKey").value.trim(), appId:$("#cApp").value.trim(),
-        projectId:$("#cProj").value.trim(),
-        authDomain:(c.authDomain)||($("#cProj").value.trim()+".firebaseapp.com"),
+        projectId:proj,
+        authDomain:(c.authDomain)||(proj+".firebaseapp.com"),
         storageBucket:c.storageBucket||"", messagingSenderId:c.messagingSenderId||""};
       try{ localStorage.setItem("ah-firebase", JSON.stringify(conf)); }catch(e){}
-      FB.ready = false; initFirebase();
+      FB.ready = false; MAP.sig = null; mapsLoading = null; mapsAuthFailed = false;
+      initFirebase(); render();
     }}]);
 }
 
@@ -1442,6 +1472,7 @@ if(S.migrated){
   b.querySelector("button").onclick = () => { delete S.migrated; save(); b.remove(); };
   document.body.insertBefore(b, $(".wrap")); save();
 }
+$("#bKeys").onclick = setupDialog;
 $("#tagline").textContent = fbConf()
   ? "Signed-in data syncs across your devices."
   : "Saved in this browser — connect Firebase or use Export/Import to sync.";

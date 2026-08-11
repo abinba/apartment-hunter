@@ -6,6 +6,10 @@ apartment-hunter-*.json
 firebase-debug.log
 .firebase/
 
+# Real config with keys in it. Commit config.example.js instead and enter the
+# values in the page once per browser — they land in local storage.
+config.js
+
 # Local data dumps
 *.local.json
 node_modules/

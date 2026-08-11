@@ -14,9 +14,28 @@ and JSON export/import, which is also the offline interchange format.
 | file | what it is |
 |---|---|
 | `index.html` | the whole app — no build step, no dependencies to install |
-| `config.js` | Firebase web config, Maps key, default city. **Commit this.** |
+| `config.example.js` | template for the keys. Committed. |
+| `config.js` | your real keys. **Gitignored** — or skip it and use the **Keys** button |
 | `firestore.rules` | security rules — this is what keeps your data private |
-| `.gitignore` | blocks service-account JSON from ever being committed |
+| `.gitignore` | blocks `config.js` and service-account JSON from being committed |
+
+### About the keys
+
+There is no server here, so anything the page needs at runtime is visible to
+anyone using the page — the Maps key travels in the request URL regardless of
+where you store it. Keeping it out of git is good hygiene, not a security
+control. The two things that actually protect you are `firestore.rules` and the
+Maps key's HTTP referrer restriction. Set both.
+
+Two ways to supply them, pick one:
+
+- **Keys button in the page.** Values live in this browser's local storage.
+  Nothing to commit; you re-enter them once per device.
+- **`cp config.example.js config.js`** and fill it in. Applies to every browser
+  on that checkout. Gitignored, so it never reaches GitHub.
+
+The service-account JSON is genuinely secret — it bypasses `firestore.rules`
+entirely. It belongs in neither place.
 
 ## Setup
 
