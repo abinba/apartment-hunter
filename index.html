@@ -71,6 +71,8 @@ header.top .spacer{flex:1}
 .permo.over{background:#fdeae3;color:#a33000}
 .psqm{font-size:11px;color:#5d6976;background:#f3f5f8;border-radius:999px;padding:2px 8px}
 .overtxt{color:var(--bad);font-weight:650}
+.routelabel{text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 4px #fff,0 0 6px #fff;
+  paint-order:stroke fill}
 .sect{margin-bottom:14px;overflow:hidden}
 .sect > h3{margin:0;padding:11px 15px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;
   font-weight:750;color:#3c4653;background:linear-gradient(180deg,#fbfcfe,#f5f7fa);
@@ -157,11 +159,26 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
 .sync.ok{background:#e7f4e4;color:#245b1f;border-color:#c3e2bc}
 .sync.busy{background:#fff4d9;color:#7a5a00;border-color:#f0dfae}
 .sync.err{background:#fdeae3;color:#8a2b00;border-color:#f3cdbe}
-#mapBox{height:330px;width:100%;background:#eef1f5}
-.legend{display:flex;gap:12px;flex-wrap:wrap;padding:9px 15px;font-size:11.5px;color:var(--muted)}
-.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;
-  margin-right:5px}
-@media(max-width:900px){#mapBox{height:250px}}
+#mapPanel{max-width:1560px;margin:16px auto 0;padding:0 16px}
+.mapcard{overflow:hidden}
+#mapBox{height:400px;width:100%;background:#eef1f5}
+.maplegend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 15px;
+  font-size:11.5px;color:var(--muted);border-top:1px solid var(--line);background:#fbfcfd}
+.maplegend i{display:inline-block;width:18px;height:3px;border-radius:2px;vertical-align:middle;
+  margin-right:6px}
+.maplegend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;
+  margin-right:5px;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.maplegend b{color:var(--ink);font-weight:650}
+.maplegend .sel{margin-left:auto;font-weight:650;color:var(--ink)}
+.maplegend select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff;
+  font-size:11.5px}
+.cand{scroll-margin-top:80px}
+@media(max-width:900px){
+  #mapPanel{padding:0 9px;margin-top:9px}
+  #mapBox{height:280px}
+  .maplegend{font-size:11px;gap:9px}
+}
+@media print{#mapPanel{display:none !important}}
 @media(max-width:900px){
   .wrap{flex-direction:column;padding:9px;gap:9px}
   .col-list{position:static;flex:1;width:100%}
@@ -216,6 +233,13 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   <button class="btn" id="bAcct">Sign in</button>
 </header>
 
+<div id="mapPanel">
+  <div class="card mapcard">
+    <div id="mapBox"></div>
+    <div class="maplegend" id="mapLegend"></div>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="col-list">
     <div class="card">
@@ -253,6 +277,8 @@ const DEFAULT_PARAMS = {
   budgetYear:42500, overPct:0.05,
   grocFull:5, grocZero:15, transFull:5, transZero:12, parkFull:10, parkZero:25,
   highThr:0.75, midThr:0.60, minData:0.35, moveInBy:"2026-09-01",
+  departHour:10,               // routes are timed to the next weekday at this hour
+
   city:(window.APP_CONFIG&&window.APP_CONFIG.defaultCity)||"Kraków",
   region:(window.APP_CONFIG&&window.APP_CONFIG.defaultRegion)||"pl"
 };
@@ -724,14 +750,6 @@ function renderForm(){
 
   html += travelPanel(c);
 
-  html += `<div class="card sect"><h3 style="--acc:var(--accent)">Map
-      <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.8">
-        routes to your places</span></h3>
-    <div id="mapBox"></div>
-    <div class="legend">${S.places.length ? S.places[0].modes.map(m=>
-      `<span><i style="background:${ROUTE_COLOR[m.mode]||"#666"}"></i>${MODES[m.mode]}</span>`).join("")
-      : ""}<span>🏠 this flat</span></div></div>`;
-
   html += `<div class="card sect"><h3 style="--acc:#7a8494">Photos
     <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.75">
     ${c.photos&&c.photos.length ? c.photos.length+" from the listing" : "none saved"}</span>
@@ -776,10 +794,7 @@ function renderForm(){
     im.onclick = () => { $("#lbImg").src = im.src; $("#lb").style.display="flex"; };
   });
   buildPrint(c);
-  if(mapDebounce) clearTimeout(mapDebounce);
-  mapDebounce = setTimeout(()=>drawMap(c), 120);
 }
-let mapDebounce = null;
 
 function refreshBox(){
   const c = S.candidates.find(x=>x.id===selId); if(!c) return;
@@ -804,7 +819,12 @@ function refreshBox(){
     inp.value = v===null?"—":(i===1 ? v.toFixed(1)+" zł/m²" : money(v));
     inp.style.color = (i===3 && v!==null && v<0) ? "var(--bad)" : ""; });
 }
-function render(){ renderList(); renderForm(); }
+function render(){
+  renderList(); renderForm();
+  const c = S.candidates.find(x=>x.id===selId);
+  if(c && MAP.ready) focusCandidate(c);
+  renderLegend();
+}
 
 /* ================================================================ print */
 function buildPrint(c){
@@ -886,7 +906,12 @@ function placeEditor(p,i){
       <button class="btn sm danger" data-del="${i}">Remove</button>
     </div>
     <div class="r"><input type="text" data-f="address" value="${esc(p.address||"")}"
-      placeholder="Address — used for travel times"></div>
+      placeholder="Address — used for travel times">
+      <span class="tiny">leave at</span>
+      <input type="number" data-f="departHour" step="0.5" min="0" max="23"
+        value="${p.departHour ?? ""}" placeholder="${S.params.departHour}"
+        title="Hour of day used for transit and traffic. Blank = the global default.">
+    </div>
     ${p.modes.map((m,j)=>`<div class="r" data-m="${j}" style="gap:5px">
       <select data-f="mode" style="padding:5px;border:1px solid var(--line);border-radius:5px">
         ${Object.keys(MODES).map(k=>`<option value="${k}" ${m.mode===k?"selected":""}>${MODES[k]}</option>`).join("")}
@@ -1064,7 +1089,7 @@ async function geocode(address){
 }
 /* Routes library first (DistanceMatrixService was deprecated in Feb 2026);
    fall back to the legacy service, which still works, if the new one is absent. */
-async function minutesBetween(from, to, mode){
+async function minutesBetween(from, to, mode, place){
   try{
     const {RouteMatrix} = await google.maps.importLibrary("routes");
     if(RouteMatrix?.computeRouteMatrix){
@@ -1080,8 +1105,9 @@ async function minutesBetween(from, to, mode){
     }
   }catch(e){ console.warn("RouteMatrix failed, falling back", e); }
   const {DistanceMatrixService} = await google.maps.importLibrary("routes");
-  const r = await new DistanceMatrixService().getDistanceMatrix({
-    origins:[from], destinations:[to], travelMode:mode, unitSystem:0});
+  const r = await new DistanceMatrixService().getDistanceMatrix(Object.assign({
+    origins:[from], destinations:[to], travelMode:mode, unitSystem:0},
+    routeOpts(place, mode)));
   const el = r.rows?.[0]?.elements?.[0];
   if(!el || el.status!=="OK") throw new Error("no route for "+MODES[mode]+" ("+(el?.status||"?")+")");
   return Math.round(el.duration.value/60);
@@ -1125,12 +1151,15 @@ async function calcTravel(c){
         say(p.name+" · "+MODES[m.mode]+"…");
         try{
           c.travel[p.id][m.mode] = await minutesBetween(
-            {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode);
+            {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode, p);
           save();
         }catch(e){ fails.push(`${p.name} by ${MODES[m.mode]}: ${e.message}`); }
       }
     }
-    save(); render();
+    save();
+    MAP.routeSig = null; MAP.fitted = false;
+    if(MAP.ready) await syncPins();
+    render();
     if(fails.length) alert("Some legs could not be routed:\n\n• " + fails.join("\n• ") +
       "\n\nGoogle does not offer every mode in every city; type those in by hand.");
   }catch(e){
@@ -1389,76 +1418,236 @@ function setupDialog(){
         authDomain:(c.authDomain)||(proj+".firebaseapp.com"),
         storageBucket:c.storageBucket||"", messagingSenderId:c.messagingSenderId||""};
       try{ localStorage.setItem("ah-firebase", JSON.stringify(conf)); }catch(e){}
-      FB.ready = false; MAP.sig = null; mapsLoading = null; mapsAuthFailed = false;
-      initFirebase(); render();
+      FB.ready = false; MAP.routeSig = null; MAP.ready = false;
+      mapsLoading = null; mapsAuthFailed = false;
+      initFirebase(); initMap(); render();
     }}]);
 }
 
-/* ================================================== map + routes */
-const MAP = {map:null, markers:[], renderers:[], sig:null};
-const ROUTE_COLOR = {BICYCLING:"#2f855a", TRANSIT:"#3272c4", WALKING:"#8a6d13", DRIVING:"#96521f"};
+/* ================================================== map + routes
+   One map for the whole search: every geocoded candidate is a pin, clicking a
+   pin selects it and draws its routes. Base map is deliberately desaturated —
+   Google's own cycle-path network is dense enough to bury a route line. */
+const MAP = {map:null, pins:{}, placePins:[], renderers:[], labels:[],
+             routeSig:null, ready:false, cache:new Map()};
+const ROUTE_COLOR = {BICYCLING:"#1f9254", TRANSIT:"#1f5fd0", WALKING:"#a8730a", DRIVING:"#b04a12"};
 
-async function drawMap(c){
-  const host = $("#mapBox"); if(!host) return;
+/* Muted base style so the routes are the loudest thing on the map. */
+const MAP_STYLE = [
+  {elementType:"labels.icon", stylers:[{visibility:"off"}]},
+  {featureType:"poi", stylers:[{visibility:"off"}]},
+  {featureType:"poi.park", elementType:"geometry",
+   stylers:[{color:"#e8efe6"},{saturation:-40}]},
+  {featureType:"landscape", elementType:"geometry",
+   stylers:[{color:"#f6f7f8"}]},
+  {featureType:"landscape.natural", elementType:"geometry",
+   stylers:[{color:"#eef1ec"},{saturation:-45}]},
+  {featureType:"road", elementType:"geometry", stylers:[{saturation:-70},{lightness:22}]},
+  {featureType:"road", elementType:"labels", stylers:[{lightness:35}]},
+  {featureType:"road.highway", elementType:"geometry",
+   stylers:[{color:"#e6e2dc"},{saturation:-60}]},
+  {featureType:"transit", stylers:[{visibility:"simplified"},{saturation:-60},{lightness:30}]},
+  {featureType:"transit.line", elementType:"geometry",
+   stylers:[{color:"#dfe3e8"},{saturation:-80}]},
+  {featureType:"water", elementType:"geometry", stylers:[{color:"#d9e6ef"},{saturation:-25}]},
+  {featureType:"administrative", elementType:"geometry", stylers:[{lightness:40}]}
+];
+
+/* Transit times depend on when you leave, so pin them to a repeatable moment
+   rather than "now" — otherwise a score quietly changes at rush hour. Google
+   also rejects transit requests with a departure time in the past. */
+function departAt(place){
+  const hour = Number(place?.departHour ?? S.params.departHour ?? 10);
+  const d = new Date();
+  d.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
+  if(d <= new Date()) d.setDate(d.getDate() + 1);
+  while(d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);  // next weekday
+  return d;
+}
+function routeOpts(place, mode){
+  const o = {};
+  const when = departAt(place);
+  if(mode === "TRANSIT") o.transitOptions = {departureTime: when};
+  if(mode === "DRIVING") o.drivingOptions = {departureTime: when, trafficModel: "bestguess"};
+  return o;
+}
+
+const pinSvg = (fill, ring) => ({
+  path: "M 0,0 C -2,-20 -10,-22 -10,-30 A 10,10 0 1,1 10,-30 C 10,-22 2,-20 0,0 z",
+  fillColor: fill, fillOpacity: 1, strokeColor: ring || "#fff", strokeWeight: 2.5,
+  scale: 1, labelOrigin: new google.maps.Point(0, -30)
+});
+
+async function initMap(){
+  const host = $("#mapBox");
   const key = getKey();
-  if(!key){ host.innerHTML = `<div class="empty">Add a Google Maps key to see the map —
-    it is in config.js, or press Calculate on the travel panel.</div>`; return; }
-  if(!c.lat || !c.lon){ host.innerHTML = `<div class="empty">Press
-    <b>Calculate</b> above to place this flat on the map.</div>`; MAP.sig = null; return; }
-  // Routing costs money and time, so only redraw when the flat or the places move.
-  const sig = [c.id, c.lat, c.lon, S.places.map(p=>[p.id,p.lat,p.lon,
-    p.modes.map(m=>m.mode).join("/")].join(",")).join(";")].join("|");
-  if(sig === MAP.sig && MAP.map && host.firstChild) return;
-  MAP.sig = sig;
+  if(!key){
+    host.innerHTML = `<div class="empty">Add a Google Maps key via the
+      <b>Keys</b> button to see the map.</div>`;
+    renderLegend(); return;
+  }
   try{
     await loadMaps(key);
     const {Map} = await google.maps.importLibrary("maps");
-    const here = {lat:c.lat, lng:c.lon};
-    MAP.map = new Map(host, {center:here, zoom:13, mapTypeControl:false,
-      streetViewControl:false, fullscreenControl:false});
-    MAP.markers.forEach(m=>m.setMap&&m.setMap(null)); MAP.markers = [];
-    MAP.renderers.forEach(r=>r.setMap(null)); MAP.renderers = [];
-    const bounds = new google.maps.LatLngBounds();
-    const flat = new google.maps.Marker({map:MAP.map, position:here, title:c.address||"Flat",
-      label:{text:"🏠", fontSize:"16px"}});
-    MAP.markers.push(flat); bounds.extend(here);
+    MAP.map = new Map(host, {
+      center:{lat:50.062, lng:19.938}, zoom:12,
+      mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
+      clickableIcons:false, styles: MAP_STYLE
+    });
+    MAP.ready = true;
+    await syncPins();
+    const c = S.candidates.find(x=>x.id===selId);
+    if(c) focusCandidate(c, false);
+  }catch(e){
+    if(!mapsAuthFailed) host.innerHTML = `<div class="empty">Map failed: ${esc(e.message)}</div>`;
+  }
+  renderLegend();
+}
 
+/* Pins for every geocoded candidate plus your places. Cheap — no routing. */
+async function syncPins(){
+  if(!MAP.ready) return;
+  Object.values(MAP.pins).forEach(m=>m.setMap(null)); MAP.pins = {};
+  MAP.placePins.forEach(m=>m.setMap(null)); MAP.placePins = [];
+  const bounds = new google.maps.LatLngBounds();
+  let any = false;
+
+  for(const p of S.places){
+    if(!p.lat || !p.lon) continue;
+    any = true;
+    const pos = {lat:p.lat, lng:p.lon};
+    MAP.placePins.push(new google.maps.Marker({
+      map:MAP.map, position:pos, title:p.name, zIndex:50,
+      icon: pinSvg("#25406e"),
+      label:{text:(p.name[0]||"?").toUpperCase(), color:"#fff", fontWeight:"700", fontSize:"12px"}
+    }));
+    bounds.extend(pos);
+  }
+  for(const c of S.candidates){
+    if(!c.lat || !c.lon) continue;
+    any = true;
+    const pos = {lat:c.lat, lng:c.lon};
+    const m = score(c).match;
+    const mk = new google.maps.Marker({
+      map:MAP.map, position:pos, title:(c.address||"Flat"), zIndex:100,
+      icon: pinSvg(scoreColor(m), c.id===selId ? "#141b25" : "#fff"),
+      label:{text: m===null ? "–" : Math.round(m*100)+"", color:"#fff",
+             fontWeight:"700", fontSize:"11px"}
+    });
+    mk.addListener("click", () => {
+      selId = c.id; render();
+      const card = document.querySelector(`.cand[data-id="${c.id}"]`);
+      if(card) card.scrollIntoView({behavior:"smooth", block:"nearest"});
+    });
+    MAP.pins[c.id] = mk;
+    bounds.extend(pos);
+  }
+  if(any && !MAP.fitted){ MAP.map.fitBounds(bounds, 60); MAP.fitted = true; }
+}
+
+function clearRoutes(){
+  MAP.renderers.forEach(r=>r.setMap(null)); MAP.renderers = [];
+  MAP.labels.forEach(l=>l.setMap(null)); MAP.labels = [];
+}
+
+/* Smoothly move to the selected flat and draw its routes. */
+async function focusCandidate(c, animate = true){
+  if(!MAP.ready || !c) return;
+  await syncPins();                                   // restyle the selected pin
+  if(!c.lat || !c.lon){ clearRoutes(); renderLegend(); return; }
+  const here = {lat:c.lat, lng:c.lon};
+  const mk = MAP.pins[c.id];
+  if(mk && animate){
+    mk.setAnimation(google.maps.Animation.BOUNCE);
+    setTimeout(()=>mk.setAnimation(null), 700);
+  }
+  if(animate) MAP.map.panTo(here);
+
+  const sig = [c.id, c.lat, c.lon, S.params.departHour,
+    S.places.map(p=>[p.id,p.lat,p.lon,p.departHour,p.modes.map(m=>m.mode).join("/")].join(","))
+      .join(";")].join("|");
+  if(sig === MAP.routeSig) return;                    // already on screen
+  MAP.routeSig = sig;
+  clearRoutes();
+
+  try{
     const {DirectionsService, DirectionsRenderer} = await google.maps.importLibrary("routes");
     const svc = new DirectionsService();
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(here);
     for(const p of S.places){
       if(!p.lat || !p.lon) continue;
-      const to = {lat:p.lat, lng:p.lon};
-      bounds.extend(to);
-      MAP.markers.push(new google.maps.Marker({map:MAP.map, position:to, title:p.name,
-        label:{text:p.name[0], color:"#fff", fontWeight:"700"}}));
+      bounds.extend({lat:p.lat, lng:p.lon});
       for(const m of p.modes){
         try{
-          const res = await svc.route({origin:here, destination:to, travelMode:m.mode});
-          const r = new DirectionsRenderer({map:MAP.map, directions:res, suppressMarkers:true,
-            preserveViewport:true,
-            polylineOptions:{strokeColor:ROUTE_COLOR[m.mode]||"#666", strokeWeight:4,
-              strokeOpacity: m.mode==="TRANSIT" ? 0.65 : 0.9}});
-          MAP.renderers.push(r);
+          // Every route is a billed request, and flipping between two flats used
+          // to re-buy both. Cache on the same signature the redraw is keyed to.
+          const ck = sig + "|" + p.id + "|" + m.mode;
+          let res = MAP.cache.get(ck);
+          if(!res){
+            res = await svc.route(Object.assign({
+              origin:here, destination:{lat:p.lat, lng:p.lon}, travelMode:m.mode
+            }, routeOpts(p, m.mode)));
+            MAP.cache.set(ck, res);
+            if(MAP.cache.size > 300) MAP.cache.delete(MAP.cache.keys().next().value);
+          }
+          if(selId !== c.id) return;                  // user moved on mid-flight
+          MAP.renderers.push(new DirectionsRenderer({
+            map:MAP.map, directions:res, suppressMarkers:true, preserveViewport:true,
+            polylineOptions:{strokeColor:ROUTE_COLOR[m.mode]||"#666", strokeWeight:5,
+              strokeOpacity: m.mode==="TRANSIT" ? 0.75 : 0.95, zIndex: 10}
+          }));
           const leg = res.routes?.[0]?.legs?.[0];
           if(leg?.duration?.value){
+            const mins = Math.round(leg.duration.value/60);
             c.travel = c.travel||{}; c.travel[p.id] = c.travel[p.id]||{};
-            c.travel[p.id][m.mode] = Math.round(leg.duration.value/60);
+            c.travel[p.id][m.mode] = mins;
+            const path = res.routes[0].overview_path || [];
+            const mid = path[Math.floor(path.length/2)];
+            if(mid) MAP.labels.push(new google.maps.Marker({
+              map:MAP.map, position:mid, zIndex:200,
+              icon:{path:google.maps.SymbolPath.CIRCLE, scale:0, fillOpacity:0, strokeOpacity:0},
+              label:{text:`${mins} min`, color:ROUTE_COLOR[m.mode]||"#444",
+                     fontWeight:"800", fontSize:"12px",
+                     className:"routelabel"}
+            }));
           }
-        }catch(e){ console.warn("no route", p.name, m.mode, e); }
+        }catch(e){ console.warn("no route", p.name, m.mode, e?.code || e); }
       }
     }
     save();
-    // fill the travel inputs in place rather than re-rendering (that would loop)
     document.querySelectorAll("input[data-pl]").forEach(el=>{
       const v = c.travel?.[el.dataset.pl]?.[el.dataset.mo];
       if(v!=null) el.value = v;
     });
-    renderList(); refreshBox();
-    MAP.map.fitBounds(bounds, 48);
+    renderList(); refreshBox(); renderLegend();
+    if(animate) MAP.map.fitBounds(bounds, 70);
   }catch(e){
-    MAP.sig = null;
-    host.innerHTML = `<div class="empty">Map failed: ${esc(e.message)}</div>`;
+    MAP.routeSig = null;
+    console.warn("route drawing failed", e);
   }
+}
+
+function renderLegend(){
+  const el = $("#mapLegend"); if(!el) return;
+  const modes = [...new Set(S.places.flatMap(p=>p.modes.map(m=>m.mode)))];
+  const c = S.candidates.find(x=>x.id===selId);
+  const hours = [6,7,8,8.5,9,9.5,10,11,12,14,17,18];
+  el.innerHTML =
+    modes.map(m=>`<span><i style="background:${ROUTE_COLOR[m]||"#666"}"></i>${MODES[m]}</span>`).join("") +
+    `<span><span class="dot" style="background:#25406e"></span>your places</span>` +
+    `<span><span class="dot" style="background:#63be7b"></span>candidates, coloured by match</span>` +
+    `<span>leaving at <select id="departSel">${hours.map(h=>
+      `<option value="${h}" ${Number(S.params.departHour)===h?"selected":""}>${
+        String(Math.floor(h)).padStart(2,"0")}:${h%1?"30":"00"}</option>`).join("")}</select></span>` +
+    (c ? `<span class="sel">${esc(c.address||"—")}</span>` : "");
+  const sel = $("#departSel");
+  if(sel) sel.onchange = () => {
+    S.params.departHour = Number(sel.value); save();
+    MAP.routeSig = null;
+    const cur = S.candidates.find(x=>x.id===selId);
+    if(cur) focusCandidate(cur);
+  };
 }
 
 /* ================================================================ boot */
@@ -1478,6 +1667,7 @@ $("#tagline").textContent = fbConf()
   : "Saved in this browser — connect Firebase or use Export/Import to sync.";
 render();
 initFirebase();
+initMap();
 </script>
 </body>
 </html>

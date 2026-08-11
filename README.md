@@ -76,14 +76,38 @@ gets scraped and billed to you.
 
 ### 3. Publish
 
+`.github/workflows/deploy.yml` builds and deploys on every push to `main`. It
+generates `config.js` from repository secrets, so no key is ever committed. It
+also refuses to deploy if it finds a real API key in a tracked file.
+
+Create the repo at [github.com/new](https://github.com/new) (public, no README),
+then:
+
 ```bash
-cd ~/Projects/apartment-hunter
-git add -A && git commit -m "apartment hunter"
-gh repo create apartment-hunter --public --source=. --push
+git remote add origin https://github.com/<user>/apartment-hunter.git
+git branch -M main
+git push -u origin main
 ```
 
-Then **Settings → Pages → Source: `main` / root**. Live at
-`https://<user>.github.io/apartment-hunter/`.
+Then, in the repo:
+
+1. **Settings → Pages → Source: `GitHub Actions`** — not "Deploy from a branch".
+2. **Settings → Secrets and variables → Actions → New repository secret**, three
+   times:
+
+   | name | value |
+   |---|---|
+   | `FIREBASE_API_KEY` | the Firebase web `apiKey` |
+   | `FIREBASE_APP_ID` | `1:1085228370812:web:…` |
+   | `MAPS_API_KEY` | the Maps browser key |
+
+3. **Actions → Deploy to GitHub Pages → Run workflow** (or just push again).
+
+Live at `https://<user>.github.io/apartment-hunter/`. After a secret changes,
+re-run the workflow — the site is rebuilt, not patched.
+
+Leave the secrets unset and it still deploys; the page just asks for the keys
+through its **Keys** button and stores them in that browser.
 
 ## How the scoring works
 
