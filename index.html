@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f3864">
+<meta name="robots" content="noindex, nofollow">
+<title>Apartment Hunter</title>
+<style>
+:root{
+  color-scheme: light;
+  --bg:#f4f6f9; --panel:#fff; --ink:#141b25; --muted:#69737f; --line:#e6eaef;
+  --navy:#25406e; --green:#3d6b3a; --gold:#8a6d13; --orange:#96521f; --purple:#4a3f78;
+  --teal:#1c6b7a; --yellow:#fffcf0; --accent:#3272c4; --bad:#c53030; --good:#2f855a;
+  --r:14px; --sh:0 1px 2px rgba(20,27,37,.05), 0 4px 14px rgba(20,27,37,.05);
+  --shx:0 2px 6px rgba(20,27,37,.07), 0 12px 32px rgba(20,27,37,.08);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:
+   radial-gradient(1100px 480px at 12% -8%, #eaf1fa 0%, transparent 62%),
+   radial-gradient(900px 420px at 96% 0%, #f2eefb 0%, transparent 58%), var(--bg);
+  background-attachment:fixed;color:var(--ink);
+  font:14px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+.wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;max-width:1560px;margin:0 auto}
+.col-list{flex:0 0 340px;position:sticky;top:16px}
+.col-form{flex:1;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+h1{font-size:16px;margin:0;letter-spacing:-.2px;font-weight:750}
+.sub{color:var(--muted);font-size:11.5px;margin-top:1px}
+header.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 18px;
+  background:rgba(255,255,255,.82);backdrop-filter:saturate(1.6) blur(12px);
+  border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+header.top .spacer{flex:1}
+.brand{width:30px;height:28px;border-radius:9px;flex:0 0 auto;letter-spacing:-.5px;
+  background:linear-gradient(140deg,#3272c4,#25406e);display:grid;place-items:center;
+  color:#fff;font-weight:800;font-size:13px;box-shadow:0 2px 6px rgba(37,64,110,.28)}
+.btn{background:#fff;border:1px solid var(--line);border-radius:9px;padding:7px 12px;
+  color:#39434f;font-weight:550;transition:.14s ease;box-shadow:0 1px 1px rgba(20,27,37,.03)}
+.btn:hover{border-color:#c9d3de;color:var(--ink);transform:translateY(-1px);
+  box-shadow:0 3px 9px rgba(20,27,37,.08)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:linear-gradient(140deg,#3272c4,#25406e);border-color:transparent;color:#fff;
+  box-shadow:0 2px 8px rgba(37,64,110,.3)}
+.btn.danger{color:var(--bad);border-color:#f3d3d3}
+.btn.sm{padding:4px 9px;font-size:12px;border-radius:7px}
+.listhead{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.listhead select{border:1px solid var(--line);border-radius:8px;padding:5px 7px;background:#fff}
+.cands{max-height:calc(100vh - 200px);overflow:auto;padding:9px;scrollbar-width:thin}
+.cand{border:1px solid var(--line);border-radius:11px;padding:11px 12px;margin-bottom:8px;
+  background:#fff;transition:.15s ease;cursor:pointer;position:relative;overflow:hidden}
+.cand::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:transparent;
+  transition:.15s ease}
+.cand:hover{border-color:#cfdae7;transform:translateY(-1px);box-shadow:0 4px 14px rgba(20,27,37,.07)}
+.cand.sel{border-color:#a8c6ea;background:#fcfdff;box-shadow:0 3px 14px rgba(50,114,196,.13)}
+.cand.sel::before{background:linear-gradient(180deg,#3272c4,#25406e)}
+.cand .nm{font-weight:640;font-size:13px;margin-bottom:7px;line-height:1.35;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cand .row2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.score{font-weight:780;font-size:16px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
+.bar{height:5px;border-radius:4px;background:#eef1f5;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:4px;transition:width .3s ease}
+.chip{display:inline-block;padding:2.5px 9px;border-radius:999px;font-size:10.5px;font-weight:700;
+  white-space:nowrap;line-height:1.5;letter-spacing:.1px}
+.tiny{font-size:11px;color:var(--muted)}
+.permo{font-size:11.5px;font-weight:650;color:#41525f;background:#eef2f6;border-radius:999px;
+  padding:2px 9px;white-space:nowrap}
+.permo.over{background:#fdeae3;color:#a33000}
+.psqm{font-size:11px;color:#5d6976;background:#f3f5f8;border-radius:999px;padding:2px 8px}
+.overtxt{color:var(--bad);font-weight:650}
+.sect{margin-bottom:14px;overflow:hidden}
+.sect > h3{margin:0;padding:11px 15px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;
+  font-weight:750;color:#3c4653;background:linear-gradient(180deg,#fbfcfe,#f5f7fa);
+  border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.sect > h3::before{content:"";width:9px;height:9px;border-radius:3px;flex:0 0 auto;
+  background:var(--acc,#8792a2);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc,#8792a2) 16%,transparent)}
+.sect .body{padding:14px 15px;display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px}
+.f label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:550}
+.f input,.f select,.f textarea{width:100%;padding:8px 10px;border:1px solid #e2e7ee;
+  border-radius:9px;background:var(--yellow);transition:.14s ease}
+.f input:hover,.f select:hover,.f textarea:hover{border-color:#cfd8e3}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:#8fb4e2;
+  background:#fff;box-shadow:0 0 0 3px rgba(50,114,196,.13)}
+.f.wide{grid-column:1/-1}
+.f .hint{font-size:10.5px;color:#9aa5b1;margin-top:3px;line-height:1.35}
+.f.calc input{background:#f2f4f7;color:#46525f;font-weight:700;border-style:dashed}
+.seg,.rate{display:flex;gap:4px}
+.seg button,.rate button{flex:1;border:1px solid #e2e7ee;background:#fff;padding:8px 0;
+  font-size:12.5px;border-radius:8px;color:#5c6774;font-weight:550;transition:.13s ease}
+.seg button:hover,.rate button:hover{border-color:#c6d1de;background:#fafbfd}
+.seg button.on[data-v="Yes"]{background:#e7f4e4;border-color:#8fc389;color:#245b1f;font-weight:730}
+.seg button.on[data-v="No"]{background:#fdeae3;border-color:#e5a98f;color:#8a2b00;font-weight:730}
+.seg button.on[data-v=""]{background:#eef1f5;border-color:#d5dce4;color:#525d6a;font-weight:730}
+.rate button.on{background:linear-gradient(140deg,#3272c4,#25406e);border-color:transparent;
+  color:#fff;font-weight:730;box-shadow:0 2px 7px rgba(37,64,110,.26)}
+.scorebox{display:flex;align-items:center;gap:20px;padding:16px 18px;flex-wrap:wrap}
+.ring{position:relative;width:74px;height:74px;flex:0 0 auto}
+.ring svg{transform:rotate(-90deg)}
+.ring .rt{position:absolute;inset:0;display:grid;place-items:center;font-size:17px;
+  font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.big{font-size:30px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
+.kv{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.kv b{display:block;font-size:15px;color:var(--ink);font-weight:730;letter-spacing:-.2px;
+  text-transform:none;margin-top:2px}
+.why{padding:0 16px 13px;font-size:12px;color:var(--muted);line-height:1.7}
+.why span{display:inline-block;margin:2px 5px 2px 0;padding:3px 9px;border-radius:7px;
+  background:#f2f5f8;border:1px solid #e8edf3}
+.why span.lost{background:#fdeee9;border-color:#f6d8cd;color:#8a2b00;font-weight:600}
+.gal{display:flex;gap:8px;overflow-x:auto;padding:13px 15px;scrollbar-width:thin}
+.gal img{height:104px;border-radius:10px;border:1px solid var(--line);cursor:zoom-in;flex:0 0 auto;
+  transition:.16s ease}
+.gal img:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 6px 18px rgba(20,27,37,.16)}
+.gal .ph{height:96px;min-width:150px;border:1px dashed var(--line);border-radius:6px;display:flex;
+  align-items:center;justify-content:center;color:var(--muted);font-size:11.5px;text-align:center;padding:8px}
+#lb{position:fixed;inset:0;background:rgba(15,20,28,.88);display:none;align-items:center;
+  justify-content:center;z-index:99;padding:24px}
+#lb img{max-width:100%;max-height:100%;border-radius:8px}
+dialog{border:1px solid var(--line);border-radius:11px;padding:0;max-width:660px;width:94%}
+dialog::backdrop{background:rgba(15,20,28,.45)}
+.dlg-h{padding:12px 15px;border-bottom:1px solid var(--line);font-weight:700}
+.dlg-b{padding:14px 15px;max-height:70vh;overflow:auto}
+.dlg-f{padding:11px 15px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+textarea.mono{width:100%;height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:11.5px;border:1px solid var(--line);border-radius:6px;padding:8px;background:#fbfcfd}
+.note{background:#fff8e6;border:1px solid #f0dfae;border-radius:7px;padding:9px 11px;
+  font-size:12.5px;margin-bottom:11px}
+.note.warn{background:#fdeceb;border-color:#f2c4bd}
+.empty{padding:34px 16px;text-align:center;color:var(--muted);font-size:13px}
+table.wt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.wt td{padding:3px 5px;border-bottom:1px solid #f0f2f5}
+table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;
+  background:var(--yellow);text-align:center}
+/* travel */
+.trav{padding:11px 13px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.pl{border:1px solid var(--line);border-radius:8px;padding:9px 10px}
+.pl .pn{font-weight:700;font-size:12.5px;margin-bottom:6px;display:flex;gap:6px;align-items:center}
+.pl .pn small{font-weight:400;color:var(--muted)}
+.mrow{display:flex;align-items:center;gap:7px;margin-top:4px}
+.mrow .ml{flex:0 0 62px;font-size:11.5px;color:var(--muted)}
+.mrow input{width:62px;padding:4px 6px;border:1px solid var(--line);border-radius:5px;
+  background:var(--yellow);text-align:center}
+.mrow .mb{height:5px;flex:1;border-radius:3px;background:#eceff3;overflow:hidden}
+.mrow .mb i{display:block;height:100%}
+.pe{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:9px}
+.pe .r{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.pe input[type=text]{flex:1;min-width:130px;padding:5px 7px;border:1px solid var(--line);
+  border-radius:5px;background:var(--yellow)}
+.pe input[type=number]{width:62px;padding:5px 7px;border:1px solid var(--line);
+  border-radius:5px;background:var(--yellow);text-align:center}
+#printSheet{display:none}
+.sync{font-size:10.5px;font-weight:650;padding:3px 10px;border-radius:999px;white-space:nowrap;
+  background:#eef1f5;color:#5b6672;border:1px solid #e2e7ee}
+.sync.ok{background:#e7f4e4;color:#245b1f;border-color:#c3e2bc}
+.sync.busy{background:#fff4d9;color:#7a5a00;border-color:#f0dfae}
+.sync.err{background:#fdeae3;color:#8a2b00;border-color:#f3cdbe}
+#mapBox{height:330px;width:100%;background:#eef1f5}
+.legend{display:flex;gap:12px;flex-wrap:wrap;padding:9px 15px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;vertical-align:middle;
+  margin-right:5px}
+@media(max-width:900px){#mapBox{height:250px}}
+@media(max-width:900px){
+  .wrap{flex-direction:column;padding:9px;gap:9px}
+  .col-list{position:static;flex:1;width:100%}
+  .cands{max-height:44vh}
+  .sect .body{grid-template-columns:1fr}
+  header.top{position:sticky;top:0;z-index:20;padding:9px 10px;gap:6px}
+  header.top h1{font-size:15px}
+  header.top .sub{display:none}
+  .btn{padding:7px 10px}
+  .big{font-size:26px}
+  .scorebox{gap:11px;padding:10px}
+  .trav{grid-template-columns:1fr}
+  dialog{width:97%;max-height:92vh}
+}
+@media print{
+  header.top,.col-list,.gal,#lb,dialog,.btn,.wrap{display:none !important}
+  body{background:#fff;font-size:11pt}
+  #printSheet{display:block;padding:0}
+  .ps-h{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
+  .ps-h h2{margin:0 0 3px;font-size:15pt}
+  .ps-h .m{font-size:9pt;color:#333}
+  .ps-g{margin-bottom:9px;break-inside:avoid}
+  .ps-g h4{margin:0 0 4px;font-size:10pt;background:#eee;padding:3px 6px;
+    border-left:3px solid #000}
+  .ps-row{display:flex;gap:8px;padding:2.5px 6px;font-size:10pt;border-bottom:1px dotted #bbb}
+  .ps-row .l{flex:1}
+  .ps-row .v{flex:0 0 190px;color:#555}
+  .ps-q{font-size:9.5pt;padding:3px 6px;border-bottom:1px dotted #bbb}
+  .ps-notes{border:1px solid #000;height:150px;margin-top:8px}
+  .ps-two{column-count:2;column-gap:16px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">AH</div>
+  <div>
+    <h1>Apartment Hunter</h1>
+    <div class="sub" id="tagline"></div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn primary" id="bNew">+ New</button>
+  <button class="btn" id="bFetch">Add from link</button>
+  <button class="btn" id="bPlaces">Places</button>
+  <button class="btn" id="bWeights">Weights</button>
+  <button class="btn" id="bPrint">Print</button>
+  <button class="btn" id="bExport">Export</button>
+  <button class="btn" id="bImport">Import</button>
+  <span id="syncPill" class="sync" title="Sync status">local only</span>
+  <button class="btn" id="bAcct">Sign in</button>
+</header>
+
+<div class="wrap">
+  <div class="col-list">
+    <div class="card">
+      <div class="listhead">
+        <strong style="font-size:13px">Candidates</strong>
+        <span class="tiny" id="cCount"></span>
+        <div style="flex:1"></div>
+        <select id="sortBy">
+          <option value="score">Score</option>
+          <option value="yearly">Yearly cost</option>
+          <option value="sqm">zł per m²</option>
+          <option value="added">Recently added</option>
+        </select>
+      </div>
+      <div class="cands" id="list"></div>
+    </div>
+  </div>
+  <div class="col-form" id="form"></div>
+</div>
+
+<div id="printSheet"></div>
+<div id="lb"><img id="lbImg" alt=""></div>
+<dialog id="dlg">
+  <div class="dlg-h" id="dlgH"></div>
+  <div class="dlg-b" id="dlgB"></div>
+  <div class="dlg-f" id="dlgF"></div>
+</dialog>
+
+<script src="config.js"></script>
+<script>
+"use strict";
+const CFG = window.APP_CONFIG || {};
+/* ================================================================ config */
+const DEFAULT_PARAMS = {
+  budgetYear:42500, overPct:0.05,
+  grocFull:5, grocZero:15, transFull:5, transZero:12, parkFull:10, parkZero:25,
+  highThr:0.75, midThr:0.60, minData:0.35, moveInBy:"2026-09-01",
+  city:(window.APP_CONFIG&&window.APP_CONFIG.defaultCity)||"Kraków",
+  region:(window.APP_CONFIG&&window.APP_CONFIG.defaultRegion)||"pl"
+};
+const CHAINS = [["Lidl",5],["Auchan",4],["Netto",3],["Biedronka",2],
+                ["Lewiatan",1],["Other",0.5],["None nearby",0]];
+const WINDOWS = [["East",1],["East–North",1],["North",0.8],["North–West",0.6],
+                 ["South–East",0.8],["South",0.55],["West",0.4],["Other / unknown",0.3]];
+const MODES = {BICYCLING:"Bike", TRANSIT:"Transit", WALKING:"Walk", DRIVING:"Car"};
+
+/* Places you travel to. Weight = how much this destination matters overall;
+   each mode's share splits that weight, so bike counts for more than transit. */
+const DEFAULT_PLACES = [
+  {id:"work", name:"Work", address:"ul. Lublańska 34A, Kraków", weight:5,
+   modes:[{mode:"BICYCLING",share:0.7,full:10,zero:30},
+          {mode:"TRANSIT",  share:0.3,full:15,zero:40}]},
+  {id:"gym",  name:"Gym", address:"al. 29 Listopada 39F, 31-425 Kraków", weight:3,
+   modes:[{mode:"BICYCLING",share:0.7,full:12,zero:30},
+          {mode:"TRANSIT",  share:0.3,full:18,zero:40}]},
+  {id:"centre", name:"City centre", address:"Rynek Główny, Kraków", weight:2,
+   modes:[{mode:"BICYCLING",share:0.6,full:15,zero:40},
+          {mode:"TRANSIT",  share:0.4,full:20,zero:45}]}
+];
+
+const DEFAULT_WEIGHTS = {
+  yearly:8, chain:3, grocmin:2, transmin:2, quiet:3, parkmin:1, windows:2,
+  neighbors:1, bedroom:5, heating:5, modern:3, kitchen:3, desk:5, piano:5, sun:4,
+  bed:2, newwin:2, nomold:4, appliances:2, nogas:3, elevator:1, bike:1, contract:3,
+  play:1, furniture:1, bathtub:1, wardrobe:1, balcony:1
+};
+const CRIT = [
+  {k:"yearly",  n:"Yearly cost within budget",   kind:"budget"},
+  {k:"chain",   n:"Nearest grocery chain",       kind:"chain"},
+  {k:"grocmin", n:"Walk to grocery",             kind:"lin", full:"grocFull", zero:"grocZero"},
+  {k:"transmin",n:"Walk to transit stop",        kind:"lin", full:"transFull",zero:"transZero"},
+  {k:"quiet",   n:"Quiet surroundings",          kind:"r3"},
+  {k:"parkmin", n:"Walk to a park",              kind:"lin", full:"parkFull", zero:"parkZero"},
+  {k:"windows", n:"Windows facing east / north", kind:"windows"},
+  {k:"neighbors",n:"Calm neighbours",            kind:"r3"},
+  {k:"bedroom", n:"Separate bedroom",            kind:"yesno"},
+  {k:"heating", n:"Central (miejskie) heating",  kind:"yesno"},
+  {k:"modern",  n:"Modern building, feels new",  kind:"r3"},
+  {k:"kitchen", n:"Kitchen not too small",       kind:"r3"},
+  {k:"desk",    n:"Place for a 140×90 desk",     kind:"yesno"},
+  {k:"piano",   n:"Place for a 120×50 piano",    kind:"yesno"},
+  {k:"sun",     n:"Lots of sunlight",            kind:"r3"},
+  {k:"bed",     n:"Bed included",                kind:"yesno"},
+  {k:"newwin",  n:"New windows",                 kind:"yesno"},
+  {k:"nomold",  n:"No damp or mould",            kind:"yesno"},
+  {k:"appliances",n:"Appliances work",           kind:"r3"},
+  {k:"nogas",   n:"Electric only, no gas",       kind:"yesno"},
+  {k:"elevator",n:"Lift or low floor",           kind:"yesno"},
+  {k:"bike",    n:"Bike storage",                kind:"yesno"},
+  {k:"contract",n:"Standard contract",           kind:"contract"},
+  {k:"play",    n:"Play internet available",     kind:"yesno"},
+  {k:"furniture",n:"Furniture changes allowed",  kind:"r3"},
+  {k:"bathtub", n:"Bathtub",                     kind:"yesno"},
+  {k:"wardrobe",n:"Wardrobe",                    kind:"yesno"},
+  {k:"balcony", n:"Balcony",                     kind:"yesno"}
+];
+
+const GROUPS = [
+  {id:"track", title:"Tracking & status", color:"var(--navy)", fields:[
+    {k:"address", l:"Address / district", type:"text", wide:true},
+    {k:"link",    l:"Listing link",       type:"url",  wide:true},
+    {k:"availfrom",l:"Available from",    type:"date",
+     hint:"Hard requirement — later than the cut-off rejects the flat."},
+    {k:"messaged",l:"Messaged them?",     type:"yesno"},
+    {k:"msgdate", l:"Date messaged",      type:"date"},
+    {k:"presched",l:"Presentation scheduled?", type:"yesno"},
+    {k:"presdate",l:"Presentation date",  type:"datetime-local"},
+    {k:"override",l:"Manual override",    type:"select",
+     opts:["","Rejected","On hold","Applied","Signed"]},
+    {k:"notes",   l:"Notes & red flags",  type:"textarea", wide:true}
+  ]},
+  {id:"cost", title:"Costs & size", color:"var(--green)", fields:[
+    {k:"rent",   l:"Rent (najem) zł/mo",  type:"num"},
+    {k:"admin",  l:"Czynsz administracyjny zł/mo", type:"num"},
+    {k:"util",   l:"Media est. zł/mo",    type:"num"},
+    {k:"total",  l:"Total monthly zł",    type:"calc"},
+    {k:"area",   l:"Area m²",             type:"num", hint:"Not scored — used for zł/m² only."},
+    {k:"persqm", l:"zł per m² per month", type:"calc"},
+    {k:"provision",l:"Provision fee zł (one-off)", type:"num"},
+    {k:"kaucja", l:"Kaucja zł (refundable)", type:"num"},
+    {k:"yearly", l:"Yearly cost zł",      type:"calc"},
+    {k:"headroom",l:"Budget headroom zł", type:"calc"}
+  ]},
+  {id:"loc", title:"Neighbourhood", color:"var(--gold)", fields:[
+    {k:"chain",   l:"Nearest grocery chain", type:"select", opts:[""].concat(CHAINS.map(c=>c[0]))},
+    {k:"grocmin", l:"Walk to grocery (min)", type:"num"},
+    {k:"transmin",l:"Walk to transit (min)", type:"num"},
+    {k:"parkmin", l:"Walk to park (min)", type:"num"},
+    {k:"windows", l:"Windows facing", type:"select", opts:[""].concat(WINDOWS.map(w=>w[0]))},
+    {k:"quiet",   l:"Quiet area", type:"r3"},
+    {k:"neighbors",l:"Neighbours calm", type:"r3"}
+  ]},
+  {id:"apt", title:"Building & apartment", color:"var(--orange)", fields:[
+    {k:"bedroom", l:"Separate bedroom", type:"yesno"},
+    {k:"heating", l:"Central heating (miejskie)", type:"yesno"},
+    {k:"desk",    l:"Desk 140×90 fits", type:"yesno"},
+    {k:"piano",   l:"Piano 120×50 fits", type:"yesno"},
+    {k:"bed",     l:"Bed included", type:"yesno"},
+    {k:"newwin",  l:"New windows", type:"yesno"},
+    {k:"nomold",  l:"No damp / mould", type:"yesno"},
+    {k:"nogas",   l:"Electric only (no gas)", type:"yesno"},
+    {k:"elevator",l:"Lift OK / low floor", type:"yesno"},
+    {k:"bike",    l:"Bike storage", type:"yesno"},
+    {k:"modern",  l:"Modern — building feels new", type:"r3",
+     hint:"0 = tired old block, 3 = new build in great shape."},
+    {k:"kitchen", l:"Kitchen size", type:"r3"},
+    {k:"sun",     l:"Sunlight", type:"r3"},
+    {k:"appliances",l:"Appliances OK", type:"r3"},
+    {k:"wintercost",l:"Winter heating zł/mo (info)", type:"num"}
+  ]},
+  {id:"contract", title:"Contract & admin", color:"var(--purple)", fields:[
+    {k:"contract",l:"Contract type", type:"select", opts:["","Standardowa","Okazjonalna"]},
+    {k:"play",    l:"Play internet available", type:"yesno"},
+    {k:"furniture",l:"Furniture changes allowed", type:"r3"}
+  ]},
+  {id:"nice", title:"Nice to have", color:"#4d4d4d", fields:[
+    {k:"bathtub", l:"Bathtub", type:"yesno"},
+    {k:"wardrobe",l:"Wardrobe", type:"yesno"},
+    {k:"balcony", l:"Balcony", type:"yesno"}
+  ]}
+];
+
+const OWNER_Q = [
+  "Od kiedy mieszkanie jest dostępne? (nie później niż 1 września)",
+  "Czy jest ogrzewanie miejskie? Jaki jest średni koszt zimą?",
+  "Jaki jest średni miesięczny koszt prądu i gazu?",
+  "Jaka jest wysokość czynszu administracyjnego i co obejmuje?",
+  "Ile wynosi kaucja? Czy jest prowizja pośrednika?",
+  "Kiedy budynek był budowany / mieszkanie remontowane?",
+  "Czy lodówka, pralka i zmywarka działają poprawnie?",
+  "Piekarnik i płyta — gaz czy prąd?",
+  "Jacy dostawcy internetu są dostępni? (preferowany Play)",
+  "Czy umowa będzie standardowa czy okazjonalna?",
+  "Jakie zmiany w umeblowaniu można wprowadzać?",
+  "Czy okna wychodzą na wschód / północ?",
+  "Jakie są relacje z sąsiadami — czy są spokojni?",
+  "Czy jest miejsce na rower (piwnica, rowerownia)?"
+];
+const SELF_Q = [
+  "Czy zmieści się biurko 140×90 cm?",
+  "Czy jest miejsce na pianino 120×50 cm?",
+  "Czy jest oddzielna sypialnia?",
+  "Czy jest dużo światła dziennego?",
+  "Czy okna są nowe i dobrze izolują?",
+  "Czy nie ma wilgoci ani pleśni (rogi, łazienka, za meblami)?",
+  "Czy winda działa poprawnie?",
+  "Czy kuchnia nie jest za mała?",
+  "Czy okolica jest cicha?",
+  "Wanna / szafa / balkon?"
+];
+
+const STATUS_STYLE = {
+  "Pending presentation":  ["#ffe699","#7f6000"],
+  "Check availability":    ["#ffd9b3","#974706"],
+  "Presentation scheduled":["#bdd7ee","#1f4e79"],
+  "Contact now":           ["#c6e0b4","#375623"],
+  "Shortlist":             ["#e2efda","#375623"],
+  "Low match":             ["#e7e6e6","#595959"],
+  "Incomplete":            ["#f2f2f2","#8a8a8a"],
+  "Rejected — too late":   ["#ff9999","#7b0000"],
+  "Rejected":              ["#f8cbad","#c00000"],
+  "On hold":               ["#d9d9d9","#3f3f3f"],
+  "Applied":               ["#a9d08e","#1f3864"],
+  "Signed":                ["#70ad47","#ffffff"]
+};
+
+/* ================================================================ state */
+const KEY = "apartment-hunter-v1";
+const SCHEMA = 3;   // 3 = places, area, modern replaces renovated
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+function load(){
+  try{
+    let raw = localStorage.getItem(KEY);
+    if(!raw){ const old = localStorage.getItem("krk-apartments-v1");
+      if(old){ raw = old; localStorage.setItem(KEY, old); } }
+    if(raw){
+      const d = JSON.parse(raw);
+      d.params  = Object.assign({}, DEFAULT_PARAMS,  d.params||{});
+      d.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights||{});
+      d.candidates = d.candidates||[];
+      d.places = d.places || DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
+      const v = d.v||1;
+      if(v < 2){ d.params.overPct = DEFAULT_PARAMS.overPct; d.weights.yearly = DEFAULT_WEIGHTS.yearly; }
+      if(v < 3){
+        // "Renovated" is gone: you would never shortlist an unrenovated flat, so the
+        // rating now only asks whether the building itself feels modern.
+        for(const c of d.candidates){ if(c.renovated!=null && c.modern==null) c.modern = c.renovated;
+                                      delete c.renovated; }
+        delete d.weights.renovated;
+        // Walk-to-work became the "Work" place, scored by real travel times.
+        delete d.weights.workmin;
+        d.migrated = "Updated: 'Renovated' is gone (it's assumed, not scored) and the rating is now "
+                   + "'Modern — building feels new'. Walk-to-work became a Place with real bike and "
+                   + "transit times. Area in m² added for the zł/m² figure.";
+      }
+      d.v = SCHEMA;
+      return d;
+    }
+  }catch(e){ console.warn("could not read saved data", e); }
+  return {v:SCHEMA, params:{...DEFAULT_PARAMS}, weights:{...DEFAULT_WEIGHTS},
+          places:DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p))),
+          candidates:SEED.map(s=>JSON.parse(JSON.stringify(s)))};
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* ================================================================ scoring */
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const numOrNull = v => (v===""||v===null||v===undefined||isNaN(Number(v))) ? null : Number(v);
+
+function costs(c){
+  const parts = [c.rent, c.admin, c.util].map(numOrNull).filter(v=>v!==null);
+  const total = parts.length ? parts.reduce((a,b)=>a+b,0) : null;
+  const prov  = numOrNull(c.provision) || 0;
+  const yearly = total===null ? null : total*12 + prov;
+  const area = numOrNull(c.area);
+  return {total, yearly,
+          headroom: yearly===null ? null : S.params.budgetYear - yearly,
+          persqm: (total===null || !area) ? null : total/area};
+}
+
+function frac(c, cr){
+  const P = S.params, v = c[cr.k];
+  switch(cr.kind){
+    case "budget": {
+      const y = costs(c).yearly; if(y===null) return null;
+      return clamp01((P.budgetYear*(1+P.overPct) - y) / (P.budgetYear*P.overPct));
+    }
+    case "lin": { const x = numOrNull(v); if(x===null) return null;
+      const f = P[cr.full], z = P[cr.zero]; return z===f ? null : clamp01((z-x)/(z-f)); }
+    case "r3": { const x = numOrNull(v); return x===null ? null : clamp01(x/3); }
+    case "yesno": return v==="Yes" ? 1 : (v==="No" ? 0 : null);
+    case "contract": return v ? (v==="Standardowa" ? 1 : 0) : null;
+    case "chain": { if(!v) return null; const r = CHAINS.find(x=>x[0]===v);
+      return r ? r[1]/Math.max(...CHAINS.map(x=>x[1])) : 0; }
+    case "windows": { if(!v) return null; const r = WINDOWS.find(x=>x[0]===v); return r ? r[1] : 0; }
+  }
+  return null;
+}
+const travelMins = (c,p,m) => numOrNull(c.travel?.[p.id]?.[m.mode]);
+function modeWeight(p, m){
+  const tot = p.modes.reduce((a,x)=>a+(Number(x.share)||0), 0) || 1;
+  return (Number(p.weight)||0) * ((Number(m.share)||0)/tot);
+}
+function modeFrac(c, p, m){
+  const t = travelMins(c,p,m);
+  return t===null ? null : (m.zero===m.full ? null : clamp01((m.zero-t)/(m.zero-m.full)));
+}
+
+function score(c){
+  let earned=0, avail=0, totalW=0; const lost=[];
+  for(const cr of CRIT){
+    const w = Number(S.weights[cr.k])||0; totalW += w;
+    const f = frac(c, cr); if(f===null) continue;
+    avail += w; earned += w*f;
+    if(f < 0.5 && w >= 3) lost.push({n:cr.n, pts:+(w*(1-f)).toFixed(1)});
+  }
+  for(const p of S.places) for(const m of p.modes){
+    const w = modeWeight(p,m); totalW += w;
+    const f = modeFrac(c,p,m); if(f===null) continue;
+    avail += w; earned += w*f;
+    if(f < 0.5 && w >= 2) lost.push({n:`${p.name} by ${MODES[m.mode].toLowerCase()}`, pts:+(w*(1-f)).toFixed(1)});
+  }
+  lost.sort((a,b)=>b.pts-a.pts);
+  return {earned, avail, totalW, match: avail>0?earned/avail:null,
+          filled: totalW>0?avail/totalW:0, lost:lost.slice(0,5)};
+}
+
+function statusOf(c){
+  const P = S.params, sc = score(c);
+  if(!c.link && !c.address) return "";
+  if(c.override) return c.override;
+  if(c.availfrom && P.moveInBy && c.availfrom > P.moveInBy) return "Rejected — too late";
+  if(c.presched === "Yes") return "Presentation scheduled";
+  if(sc.match===null || sc.filled < P.minData) return "Incomplete";
+  if(sc.match >= P.highThr && c.messaged === "Yes" && !c.availfrom) return "Check availability";
+  if(sc.match >= P.highThr && c.messaged === "Yes") return "Pending presentation";
+  if(sc.match >= P.highThr) return "Contact now";
+  if(sc.match >= P.midThr)  return "Shortlist";
+  return "Low match";
+}
+const scoreColor = m => m===null ? "#c3ccd6"
+  : m>=0.85 ? "#63be7b" : m>=0.7 ? "#a9cf7a" : m>=0.55 ? "#ffd666" : "#f0836b";
+const money = v => (v===null||v===undefined||v==="") ? "—"
+  : Math.round(v).toLocaleString("pl-PL")+" zł";
+
+/* ================================================================ seed */
+const OLX_CDN = "https://ireland.apollo.olxcdn.com/v1/files/";
+const SEED = [
+  { id:"seed-mogilska", added:1,
+    address:"rej. ul. Mogilskiej, Kraków (Grzegórzki)",
+    link:"https://www.olx.pl/d/oferta/2pok-35m2-mogilska-balkon-parking-3500all-CID3-ID1bIJPI.html",
+    availfrom:"2026-08-09", rent:2800, admin:600, util:120, area:35,
+    transmin:5, chain:"Lidl", bedroom:"Yes", nogas:"Yes", elevator:"Yes", balcony:"Yes",
+    notes:"OLX, agency. 'Dostępne od zaraz'. Czynsz 600 covers water + waste; electricity ~70 zł "+
+          "plus compulsory fibre 49 zł, so media 120 zł is an estimate. Kaucja required, amount "+
+          "not stated. Agency provision applies, amount not stated. Induction hob. 4th floor, lift.",
+    photos:["vhd72dla4iwt1-PL","f5j89qrzc6ql-PL","idyv7x5mpcnu-PL","v6nq65af0vhn1-PL",
+            "ilbq0wp8i5763-PL","sscgafdvqbyi-PL","n8fcp2x3ee9y1-PL","6tqcff9phqor2-PL"]
+           .map(s=>OLX_CDN+s+"/image") },
+  { id:"seed-kaskada", added:2,
+    address:"Kaskada, ul. Dobrego Pasterza / Rondo Barei, Kraków (Prądnik Czerwony)",
+    link:"https://www.olx.pl/d/oferta/2-pok-rondo-barei-serenada-duzy-taras-CID3-ID1aWfoz.html",
+    rent:2800, admin:586, util:200, kaucja:4000, provision:2800, area:41,
+    heating:"Yes", nogas:"Yes", elevator:"Yes", balcony:"Yes",
+    notes:"OLX, agency. AVAILABILITY NOT STATED — ask first. 'W budynku nie ma gazu', 'ogrzewanie "+
+          "i woda z sieci miejskiej'. Kaucja 4000 zł. Provision = one month's rent (2800 zł), "+
+          "which is what breaks the budget. Media 200 zł estimated. Large terrace, 2nd floor.",
+    photos:["t85etzj0bxio3-PL","2y7o0g9umsfq3-PL","xwzaip5xufjv1-PL","p94bdjh9wr1a2-PL",
+            "3kbetnykmrb72-PL","vyh6xhcnztwv3-PL","ha8u5vdxv6mv1-PL","9a0yz7kbzzx31-PL"]
+           .map(s=>OLX_CDN+s+"/image") },
+  { id:"seed-quattro", added:3,
+    address:"Kraków, Prądnik Czerwony (near Quattro Park)",
+    link:"https://www.otodom.pl/pl/oferta/dwupokojowe-wysoki-standard-blisko-quattro-park-ID34pWq",
+    availfrom:"2026-09-01", rent:2700, admin:700, util:200, kaucja:3600, area:40,
+    heating:"Yes", balcony:"Yes", appliances:"3", lat:50.08821, lon:19.971037,
+    notes:"Otodom. 'Available from 2026/09/01' — exactly on the cut-off, no slack. Heating miejskie. "+
+          "Dishwasher, fridge, washer, oven, hob, furniture. Garage, intercom. Media 200 zł estimated.",
+    photos:[] },
+  { id:"seed-przytulne", added:4,
+    address:"Kraków, Prądnik Czerwony",
+    link:"https://www.otodom.pl/pl/oferta/przytulne-2-pokoje-mieszkanie-z-balkonem-krakow-pradnik-czerwony-ID4Cwxr",
+    rent:2800, admin:600, util:200, kaucja:2800, area:42,
+    balcony:"Yes", appliances:"3", lat:50.07958, lon:19.95969,
+    notes:"Otodom. AVAILABILITY NOT STATED — ask first. Dishwasher, fridge, washer, oven, hob, TV, "+
+          "furniture. Heating type not given. Kaucja 2800 zł. Media 200 zł estimated.",
+    photos:[] }
+];
+
+let S = load();
+let selId = S.candidates.length ? S.candidates[0].id : null;
+
+/* ================================================================ render */
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g, m =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+function ring(m){
+  const R = 31, C = 2*Math.PI*R, col = scoreColor(m), pct = m===null ? 0 : m;
+  return `<div class="ring"><svg width="74" height="74" viewBox="0 0 74 74">
+      <circle cx="37" cy="37" r="${R}" fill="none" stroke="#edf0f4" stroke-width="7"/>
+      <circle class="rp" cx="37" cy="37" r="${R}" fill="none" stroke="${col}" stroke-width="7"
+        stroke-linecap="round" stroke-dasharray="${C}"
+        stroke-dashoffset="${C*(1-pct)}" style="transition:stroke-dashoffset .45s ease"/>
+    </svg><div class="rt" style="color:${col}">${m===null?"—":Math.round(m*100)+"%"}</div></div>`;
+}
+function chip(st){ if(!st) return "";
+  const [bg,fg] = STATUS_STYLE[st] || ["#eee","#333"];
+  return `<span class="chip" style="background:${bg};color:${fg}">${esc(st)}</span>`; }
+
+function renderList(){
+  const sort = $("#sortBy").value, arr = S.candidates.slice();
+  const sc = c => score(c).match ?? -1;
+  if(sort==="score")  arr.sort((a,b)=>sc(b)-sc(a));
+  if(sort==="yearly") arr.sort((a,b)=>(costs(a).yearly??9e9)-(costs(b).yearly??9e9));
+  if(sort==="sqm")    arr.sort((a,b)=>(costs(a).persqm??9e9)-(costs(b).persqm??9e9));
+  if(sort==="added")  arr.sort((a,b)=>(b.added||0)-(a.added||0));
+  $("#cCount").textContent = S.candidates.length ? S.candidates.length+" saved" : "";
+  if(!arr.length){ $("#list").innerHTML = `<div class="empty">Nothing yet — hit <b>+ New</b>.</div>`; return; }
+  $("#list").innerHTML = arr.map(c=>{
+    const s = score(c), st = statusOf(c), cc = costs(c);
+    const pct = s.match===null ? "—" : Math.round(s.match*100)+"%";
+    const over = cc.headroom!==null && cc.headroom < 0;
+    const work = S.places[0] ? travelMins(c, S.places[0], S.places[0].modes[0]) : null;
+    return `<div class="cand ${c.id===selId?"sel":""}" data-id="${c.id}">
+      <div class="nm">${esc(c.address || "Untitled — add an address")}</div>
+      <div class="row2">
+        <span class="score" style="color:${scoreColor(s.match)}">${pct}</span>
+        <span class="permo ${over?"over":""}">${cc.total===null?"—":money(cc.total)+"/mo"}</span>
+        ${cc.persqm!==null?`<span class="psqm">${cc.persqm.toFixed(0)} zł/m²</span>`:""}
+        ${chip(st)}
+      </div>
+      <div class="bar"><i style="width:${s.match===null?0:s.match*100}%;
+        background:${scoreColor(s.match)}"></i></div>
+      <div class="tiny" style="margin-top:5px">
+        <span class="${over?"overtxt":""}">${money(cc.yearly)}/yr${
+          over?" · "+money(Math.abs(cc.headroom))+" over":""}</span>
+        · ${Math.round(s.filled*100)}% filled${work!==null?" · 🚲 "+work+" min":""}
+      </div></div>`;
+  }).join("");
+  document.querySelectorAll(".cand").forEach(el=>{
+    el.onclick = () => { selId = el.dataset.id; render();
+      if(innerWidth<=900) $("#form").scrollIntoView({behavior:"smooth",block:"start"}); };
+  });
+}
+
+function field(c, f){
+  const v = c[f.k] ?? "", id = "f_"+f.k;
+  let inner = "";
+  if(f.type==="yesno"){
+    inner = `<div class="seg" data-k="${f.k}">${["Yes","No",""].map(o=>
+      `<button data-v="${o}" class="${v===o?"on":""}">${o||"?"}</button>`).join("")}</div>`;
+  } else if(f.type==="r3"){
+    inner = `<div class="rate" data-k="${f.k}">${["0","1","2","3",""].map(o=>
+      `<button data-v="${o}" class="${String(v)===o?"on":""}">${o||"?"}</button>`).join("")}</div>`;
+  } else if(f.type==="select"){
+    inner = `<select id="${id}" data-k="${f.k}">${f.opts.map(o=>
+      `<option value="${esc(o)}" ${v===o?"selected":""}>${esc(o||"—")}</option>`).join("")}</select>`;
+  } else if(f.type==="textarea"){
+    inner = `<textarea id="${id}" data-k="${f.k}" rows="3">${esc(v)}</textarea>`;
+  } else if(f.type==="calc"){
+    const cc = costs(c);
+    const val = {total:cc.total, yearly:cc.yearly, headroom:cc.headroom, persqm:cc.persqm}[f.k];
+    const txt = val===null ? "—" : (f.k==="persqm" ? val.toFixed(1)+" zł/m²" : money(val));
+    const col = (f.k==="headroom" && val!==null && val<0) ? "color:var(--bad)" : "";
+    inner = `<input readonly value="${txt}" style="${col}">`;
+  } else {
+    inner = `<input id="${id}" data-k="${f.k}" type="${f.type==="num"?"number":f.type}"
+      value="${esc(v)}" ${f.type==="num"?'step="any" min="0"':""}>`;
+  }
+  return `<div class="f ${f.wide?"wide":""} ${f.type==="calc"?"calc":""}">
+    <label for="${id}">${esc(f.l)}</label>${inner}
+    ${f.hint?`<div class="hint">${esc(f.hint)}</div>`:""}</div>`;
+}
+
+function travelPanel(c){
+  let h = `<div class="card sect"><h3 style="--acc:var(--teal)">Travel times
+    <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.8">
+      minutes — lower is better</span>
+    <div style="flex:1"></div>
+    <button class="btn sm" id="bCalc" style="color:#155e75">Calculate</button>
+    </h3><div class="trav">`;
+  for(const p of S.places){
+    h += `<div class="pl"><div class="pn">${esc(p.name)}
+      <small>weight ${p.weight}</small></div>`;
+    for(const m of p.modes){
+      const t = travelMins(c,p,m), f = modeFrac(c,p,m);
+      h += `<div class="mrow">
+        <span class="ml">${MODES[m.mode]}</span>
+        <input type="number" min="0" step="1" data-pl="${p.id}" data-mo="${m.mode}"
+          value="${t===null?"":t}" placeholder="—">
+        <span class="mb"><i style="width:${f===null?0:f*100}%;
+          background:${scoreColor(f)}"></i></span>
+      </div>`;
+    }
+    h += `</div>`;
+  }
+  if(!S.places.length) h += `<div class="tiny">No places yet — add some under “Places”.</div>`;
+  h += `</div><div class="why"><span>Weight is split across modes by the shares you set,
+    so bike counts for more than transit. Blank means not measured, and it is left out of the
+    score rather than counted as bad.</span></div></div>`;
+  return h;
+}
+
+function renderForm(){
+  const c = S.candidates.find(x=>x.id===selId);
+  if(!c){ $("#form").innerHTML = `<div class="card"><div class="empty">
+    Pick a candidate, or add a new one.</div></div>`; buildPrint(null); return; }
+  const s = score(c), st = statusOf(c), cc = costs(c);
+  const pct = s.match===null ? "—" : Math.round(s.match*100)+"%";
+
+  let html = `<div class="card sect"><div class="scorebox">
+      ${ring(s.match)}
+      <div>${chip(st)||'<span class="tiny">Add an address to get a status</span>'}</div>
+      <div class="kv">Points<b>${s.earned.toFixed(1)} / ${s.avail.toFixed(1)}</b></div>
+      <div class="kv">Data filled<b>${Math.round(s.filled*100)}%</b></div>
+      <div class="kv">Monthly<b>${money(cc.total)}</b></div>
+      <div class="kv">Per m²<b>${cc.persqm===null?"—":cc.persqm.toFixed(1)+" zł"}</b></div>
+      <div class="kv">Yearly<b style="${cc.headroom<0?'color:var(--bad)':''}">${money(cc.yearly)}</b></div>
+      <div class="kv">Headroom<b style="${cc.headroom<0?'color:var(--bad)':''}">${money(cc.headroom)}</b></div>
+      <div style="flex:1"></div>
+      <button class="btn sm danger" id="bDel">Delete</button></div>`;
+  if(cc.headroom!==null && cc.headroom<0){
+    const bf = frac(c, CRIT[0]);
+    html += `<div class="why"><span class="lost">Over budget by ${money(Math.abs(cc.headroom))}
+      — scoring ${Math.round(bf*100)}% of the ${S.weights.yearly} budget points,
+      costing ${(S.weights.yearly*(1-bf)).toFixed(1)}</span></div>`;
+  }
+  if(s.lost.length) html += `<div class="why">Losing most points to:
+    ${s.lost.map(l=>`<span class="lost">${esc(l.n)} −${l.pts}</span>`).join("")}</div>`;
+  if(s.match!==null && s.filled < S.params.minData)
+    html += `<div class="why"><span>Only ${Math.round(s.filled*100)}% answered, so this stays
+      “Incomplete” — ${pct} off that little says almost nothing.</span></div>`;
+  html += `</div>`;
+
+  html += travelPanel(c);
+
+  html += `<div class="card sect"><h3 style="--acc:var(--accent)">Map
+      <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.8">
+        routes to your places</span></h3>
+    <div id="mapBox"></div>
+    <div class="legend">${S.places.length ? S.places[0].modes.map(m=>
+      `<span><i style="background:${ROUTE_COLOR[m.mode]||"#666"}"></i>${MODES[m.mode]}</span>`).join("")
+      : ""}<span>🏠 this flat</span></div></div>`;
+
+  html += `<div class="card sect"><h3 style="--acc:#7a8494">Photos
+    <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:.75">
+    ${c.photos&&c.photos.length ? c.photos.length+" from the listing" : "none saved"}</span>
+    </h3><div class="gal">`;
+  html += (c.photos&&c.photos.length)
+    ? c.photos.map(u=>`<img src="${esc(u)}" loading="lazy" alt="" onerror="this.replaceWith(
+        Object.assign(document.createElement('div'),{className:'ph',textContent:'image blocked'}))">`).join("")
+    : `<div class="ph">No photos saved.</div>`;
+  html += `</div>${c.link?`<div class="why"><a href="${esc(c.link)}" target="_blank"
+    rel="noopener">Open the listing ↗</a></div>`:""}</div>`;
+
+  for(const g of GROUPS)
+    html += `<div class="card sect"><h3 style="--acc:${g.color}">${esc(g.title)}</h3>
+      <div class="body">${g.fields.map(f=>field(c,f)).join("")}</div></div>`;
+  $("#form").innerHTML = html;
+
+  $("#form").querySelectorAll("input[data-k],select[data-k],textarea[data-k]").forEach(el=>{
+    el.addEventListener("input", ()=>{ c[el.dataset.k]=el.value; save(); renderList(); refreshBox(); });
+    el.addEventListener("change",()=>{ c[el.dataset.k]=el.value; save(); render(); });
+  });
+  $("#form").querySelectorAll("input[data-pl]").forEach(el=>{
+    const upd = () => {
+      c.travel = c.travel||{}; c.travel[el.dataset.pl] = c.travel[el.dataset.pl]||{};
+      const n = el.value==="" ? null : Number(el.value);
+      if(n===null) delete c.travel[el.dataset.pl][el.dataset.mo];
+      else c.travel[el.dataset.pl][el.dataset.mo] = n;
+      save();
+    };
+    el.addEventListener("input", ()=>{ upd(); renderList(); refreshBox(); });
+    el.addEventListener("change",()=>{ upd(); render(); });
+  });
+  $("#form").querySelectorAll(".seg,.rate").forEach(box=>{
+    box.querySelectorAll("button").forEach(b=>{
+      b.onclick = () => { c[box.dataset.k] = b.dataset.v; save(); render(); };
+    });
+  });
+  $("#bDel").onclick = () => { if(!confirm("Delete this candidate?")) return;
+    S.candidates = S.candidates.filter(x=>x.id!==c.id);
+    selId = S.candidates[0]?.id ?? null; save(); render(); };
+  const bc = $("#bCalc"); if(bc) bc.onclick = () => calcTravel(c);
+  $("#form").querySelectorAll(".gal img").forEach(im=>{
+    im.onclick = () => { $("#lbImg").src = im.src; $("#lb").style.display="flex"; };
+  });
+  buildPrint(c);
+  if(mapDebounce) clearTimeout(mapDebounce);
+  mapDebounce = setTimeout(()=>drawMap(c), 120);
+}
+let mapDebounce = null;
+
+function refreshBox(){
+  const c = S.candidates.find(x=>x.id===selId); if(!c) return;
+  const s = score(c), cc = costs(c), box = $(".scorebox"); if(!box) return;
+  const col = scoreColor(s.match), C = 2*Math.PI*31;
+  const rt = box.querySelector(".rt"), rp = box.querySelector(".rp");
+  if(rt){ rt.textContent = s.match===null?"—":Math.round(s.match*100)+"%"; rt.style.color = col; }
+  if(rp){ rp.setAttribute("stroke", col);
+          rp.setAttribute("stroke-dashoffset", C*(1-(s.match||0))); }
+  const b = box.querySelectorAll(".kv b");
+  b[0].textContent = s.earned.toFixed(1)+" / "+s.avail.toFixed(1);
+  b[1].textContent = Math.round(s.filled*100)+"%";
+  b[2].textContent = money(cc.total);
+  b[3].textContent = cc.persqm===null?"—":cc.persqm.toFixed(1)+" zł";
+  b[4].textContent = money(cc.yearly);
+  b[5].textContent = money(cc.headroom);
+  const bad = cc.headroom!==null && cc.headroom<0 ? "var(--bad)" : "";
+  b[4].style.color = bad; b[5].style.color = bad;
+  const cf = $("#form").querySelectorAll(".f.calc input");
+  const vals = [cc.total, cc.persqm, cc.yearly, cc.headroom];
+  cf.forEach((inp,i)=>{ const v = vals[i];
+    inp.value = v===null?"—":(i===1 ? v.toFixed(1)+" zł/m²" : money(v));
+    inp.style.color = (i===3 && v!==null && v<0) ? "var(--bad)" : ""; });
+}
+function render(){ renderList(); renderForm(); }
+
+/* ================================================================ print */
+function buildPrint(c){
+  if(!c){ $("#printSheet").innerHTML = ""; return; }
+  const cc = costs(c);
+  const row = (l,v) => `<div class="ps-row"><span class="l">${esc(l)}</span>
+    <span class="v">${v===undefined?"":esc(v)}</span></div>`;
+  const blank = l => `<div class="ps-row"><span class="l">${esc(l)}</span>
+    <span class="v">____________________</span></div>`;
+  let h = `<div class="ps-h">
+    <h2>${esc(c.address || "Viewing sheet")}</h2>
+    <div class="m">${esc(c.link||"")} · viewing ${esc((c.presdate||"").replace("T"," "))||"date: ____________"}
+      · ${money(cc.total)}/mo${cc.persqm!==null?" · "+cc.persqm.toFixed(1)+" zł/m²":""}
+      · ${money(cc.yearly)}/yr</div></div>`;
+
+  h += `<div class="ps-g"><h4>Known before the viewing</h4>` +
+    row("Rent / czynsz / media", `${money(c.rent)} / ${money(c.admin)} / ${money(c.util)}`) +
+    row("Kaucja / provision", `${money(c.kaucja)} / ${money(c.provision)}`) +
+    row("Area", c.area ? c.area+" m²" : "—") +
+    row("Available from", c.availfrom || "NOT STATED — ask") + `</div>`;
+
+  h += `<div class="ps-g"><h4>Travel (minutes)</h4>`;
+  for(const p of S.places) for(const m of p.modes)
+    h += row(`${p.name} — ${MODES[m.mode]}`, travelMins(c,p,m) ?? "—");
+  h += `</div>`;
+
+  h += `<div class="ps-g"><h4>Check yourself</h4><div class="ps-two">`;
+  h += SELF_Q.map(q=>`<div class="ps-q">☐ ${esc(q)}</div>`).join("");
+  h += `</div></div><div class="ps-g"><h4>Rate on the spot (0–3)</h4><div class="ps-two">`;
+  h += ["Modern — building feels new","Kitchen size","Sunlight","Appliances",
+        "Quiet area","Neighbours","Furniture flexibility"]
+        .map(l=>`<div class="ps-q">${esc(l)} &nbsp; 0 ☐ &nbsp; 1 ☐ &nbsp; 2 ☐ &nbsp; 3 ☐</div>`).join("");
+  h += `</div></div><div class="ps-g"><h4>Ask the owner</h4>`;
+  h += OWNER_Q.map(q=>`<div class="ps-q">☐ ${esc(q)} <span style="color:#999">
+    ......................................</span></div>`).join("");
+  h += `</div><div class="ps-g"><h4>Notes</h4><div class="ps-notes"></div></div>`;
+  $("#printSheet").innerHTML = h;
+}
+$("#bPrint").onclick = () => {
+  if(!S.candidates.find(x=>x.id===selId)) return alert("Pick a candidate to print first.");
+  window.print();
+};
+
+/* ================================================================ dialogs */
+function dialog(title, bodyHtml, buttons){
+  $("#dlgH").textContent = title; $("#dlgB").innerHTML = bodyHtml; $("#dlgF").innerHTML = "";
+  buttons.forEach(b=>{ const el = document.createElement("button");
+    el.className = "btn "+(b.primary?"primary":""); el.textContent = b.label;
+    el.onclick = () => { if(b.act) b.act(); if(b.close!==false) $("#dlg").close(); };
+    $("#dlgF").appendChild(el); });
+  $("#dlg").showModal();
+}
+$("#bNew").onclick = () => { const c = {id:uid(), added:Date.now(), photos:[], travel:{}};
+  S.candidates.unshift(c); selId = c.id; save(); render();
+  setTimeout(()=>$("#form").querySelector('input[data-k="address"]')?.focus(), 30); };
+
+/* ---------------------------------------------------------- places editor */
+$("#bPlaces").onclick = () => {
+  const body = () => `
+    <div class="note">Weight = how much this destination matters. Each mode's share splits that
+    weight, so bike 0.7 / transit 0.3 means bike counts for more than twice as much.
+    <b>full</b> = minutes that still earn full points, <b>zero</b> = minutes worth nothing.</div>
+    <div id="plList">${S.places.map((p,i)=>placeEditor(p,i)).join("")}</div>
+    <button class="btn" id="bAddPlace">+ Add a place</button>`;
+  const open = () => {
+    dialog("Places you travel to", body(),
+      [{label:"Reset to defaults", act(){ S.places = DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
+          save(); render(); }},
+       {label:"Done", primary:true, act(){ save(); render(); }}]);
+    wirePlaces(open);
+  };
+  open();
+};
+function placeEditor(p,i){
+  return `<div class="pe" data-i="${i}">
+    <div class="r">
+      <input type="text" data-f="name" value="${esc(p.name)}" placeholder="Name">
+      <input type="number" data-f="weight" value="${p.weight}" min="0" step="1" title="Weight">
+      <button class="btn sm danger" data-del="${i}">Remove</button>
+    </div>
+    <div class="r"><input type="text" data-f="address" value="${esc(p.address||"")}"
+      placeholder="Address — used for travel times"></div>
+    ${p.modes.map((m,j)=>`<div class="r" data-m="${j}" style="gap:5px">
+      <select data-f="mode" style="padding:5px;border:1px solid var(--line);border-radius:5px">
+        ${Object.keys(MODES).map(k=>`<option value="${k}" ${m.mode===k?"selected":""}>${MODES[k]}</option>`).join("")}
+      </select>
+      <span class="tiny">share</span><input type="number" data-f="share" value="${m.share}" step="0.1" min="0">
+      <span class="tiny">full</span><input type="number" data-f="full" value="${m.full}" min="0">
+      <span class="tiny">zero</span><input type="number" data-f="zero" value="${m.zero}" min="1">
+      <button class="btn sm" data-delm="${j}">✕</button></div>`).join("")}
+    <button class="btn sm" data-addm="${i}">+ mode</button>
+    <span class="tiny" style="margin-left:8px">${p.modes.map(m=>
+      MODES[m.mode]+" "+modeWeight(p,m).toFixed(1)+"pts").join(" · ")}</span>
+  </div>`;
+}
+function wirePlaces(reopen){
+  const B = $("#dlgB");
+  B.querySelectorAll(".pe").forEach(pe=>{
+    const p = S.places[+pe.dataset.i];
+    pe.querySelectorAll(':scope > .r > [data-f]').forEach(el=>{
+      el.addEventListener("change", ()=>{
+        p[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value; save(); });
+    });
+    pe.querySelectorAll('[data-m]').forEach(mr=>{
+      const m = p.modes[+mr.dataset.m];
+      mr.querySelectorAll('[data-f]').forEach(el=>{
+        el.addEventListener("change", ()=>{
+          m[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value; save(); reopen(); });
+      });
+      mr.querySelector('[data-delm]').onclick = () => {
+        p.modes.splice(+mr.dataset.m,1); save(); reopen(); };
+    });
+    pe.querySelector('[data-del]').onclick = () => {
+      S.places.splice(+pe.dataset.i,1); save(); reopen(); };
+    pe.querySelector('[data-addm]').onclick = () => {
+      p.modes.push({mode:"WALKING",share:0.3,full:15,zero:35}); save(); reopen(); };
+  });
+  $("#bAddPlace").onclick = () => {
+    S.places.push({id:uid(), name:"New place", address:"", weight:2,
+      modes:[{mode:"BICYCLING",share:0.7,full:12,zero:30},
+             {mode:"TRANSIT",share:0.3,full:18,zero:40}]});
+    save(); reopen(); };
+}
+
+/* ---------------------------------------------------------- weights */
+$("#bWeights").onclick = () => {
+  const P = S.params;
+  const rows = CRIT.map(cr=>`<tr><td>${esc(cr.n)}</td>
+    <td><input type="number" min="0" step="1" data-w="${cr.k}" value="${S.weights[cr.k]}"></td></tr>`).join("");
+  const placeRows = S.places.map(p=>`<tr><td>${esc(p.name)}
+    <span class="tiny">(edit under Places)</span></td>
+    <td style="text-align:center">${p.weight}</td></tr>`).join("");
+  dialog("Weights & rules", `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px">
+      <div class="f"><label>Yearly budget (zł)</label>
+        <input type="number" data-p="budgetYear" value="${P.budgetYear}"></div>
+      <div class="f"><label>Available no later than</label>
+        <input type="date" data-p="moveInBy" value="${esc(P.moveInBy)}"></div>
+      <div class="f"><label>City</label>
+        <input type="text" data-p="city" value="${esc(P.city||"")}">
+        <div class="hint">Added to addresses that omit it, when looking them up on the map.</div></div>
+      <div class="f"><label>Country code</label>
+        <input type="text" data-p="region" value="${esc(P.region||"")}"></div>
+      <div class="f"><label>Score hits 0 at % over budget</label>
+        <input type="number" data-p="overPct" value="${Math.round(P.overPct*100)}"></div>
+      <div class="f"><label>Min. data before ranking (%)</label>
+        <input type="number" data-p="minData" value="${Math.round(P.minData*100)}"></div>
+      <div class="f"><label>“Pending presentation” at (%)</label>
+        <input type="number" data-p="highThr" value="${Math.round(P.highThr*100)}"></div>
+      <div class="f"><label>“Shortlist” at (%)</label>
+        <input type="number" data-p="midThr" value="${Math.round(P.midThr*100)}"></div>
+    </div>
+    <table class="wt">${rows}${placeRows}</table>`,
+    [{label:"Reset", act(){ S.params={...DEFAULT_PARAMS}; S.weights={...DEFAULT_WEIGHTS};
+        save(); render(); }},
+     {label:"Save", primary:true, act(){
+        $("#dlgB").querySelectorAll("[data-p]").forEach(i=>{ const k=i.dataset.p;
+          S.params[k] = ["moveInBy","city","region"].includes(k) ? i.value
+            : ["highThr","midThr","minData","overPct"].includes(k) ? (Number(i.value)||0)/100
+            : Number(i.value)||0; });
+        $("#dlgB").querySelectorAll("[data-w]").forEach(i=>{ S.weights[i.dataset.w]=Number(i.value)||0; });
+        save(); render(); }}]);
+};
+
+/* ---------------------------------------------------------- export/import */
+$("#bExport").onclick = () => {
+  const json = JSON.stringify({exported:new Date().toISOString(), v:SCHEMA,
+    params:S.params, weights:S.weights, places:S.places, candidates:S.candidates}, null, 2);
+  dialog("Export", `<div class="note">Hand this JSON to Claude and it rebuilds the spreadsheet.
+    Use it to move your data between this phone and your desktop — they do not share storage.</div>
+    <textarea class="mono" id="expT" readonly>${esc(json)}</textarea>`,
+    [{label:"Download CSV", close:false, act(){ dl(toCSV(),"apartment-hunter.csv","text/csv"); }},
+     {label:"Copy JSON", close:false, act(){ navigator.clipboard?.writeText(json); $("#expT").select(); }},
+     {label:"Download JSON", primary:true, act(){ dl(json,"apartment-hunter.json","application/json"); }}]);
+};
+$("#bImport").onclick = () => dialog("Import",
+  `<div class="note">Paste JSON exported from this page. Replace wipes what is here now.</div>
+   <textarea class="mono" id="impT" placeholder='{"candidates":[ ... ]}'></textarea>`,
+  [{label:"Merge", act(){ doImport(false); }},
+   {label:"Replace all", primary:true, act(){ doImport(true); }}]);
+function doImport(replace){
+  try{
+    const d = JSON.parse($("#impT").value);
+    const inc = (d.candidates||[]).map(c=>Object.assign({id:uid(),added:Date.now(),photos:[],travel:{}},c));
+    if(replace){ S.candidates = inc;
+      if(d.params) S.params = Object.assign({},DEFAULT_PARAMS,d.params);
+      if(d.weights) S.weights = Object.assign({},DEFAULT_WEIGHTS,d.weights);
+      if(d.places) S.places = d.places;
+    } else { const seen = new Set(S.candidates.map(c=>c.link).filter(Boolean));
+      S.candidates = S.candidates.concat(inc.filter(c=>!c.link || !seen.has(c.link))); }
+    selId = S.candidates[0]?.id ?? null; save(); render();
+  }catch(e){ alert("Not valid JSON:\n\n"+e.message); }
+}
+function toCSV(){
+  const keys = ["address","link","availfrom","rent","admin","util","area","provision","kaucja",
+    "chain","grocmin","transmin","quiet","parkmin","windows","neighbors","bedroom","heating",
+    "modern","kitchen","desk","piano","sun","bed","newwin","nomold","appliances","nogas",
+    "elevator","bike","contract","play","furniture","bathtub","wardrobe","balcony",
+    "messaged","presched","notes"];
+  const travCols = [];
+  for(const p of S.places) for(const m of p.modes) travCols.push([p,m]);
+  const head = ["status","match_pct","monthly","per_sqm","yearly","headroom"]
+    .concat(travCols.map(([p,m])=>`${p.name} (${MODES[m.mode]}) min`)).concat(keys);
+  const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
+  const lines = [head.join(",")];
+  for(const c of S.candidates){ const s=score(c), cc=costs(c);
+    lines.push([statusOf(c), s.match===null?"":Math.round(s.match*100), cc.total??"",
+      cc.persqm===null?"":cc.persqm.toFixed(1), cc.yearly??"", cc.headroom??""]
+      .concat(travCols.map(([p,m])=>travelMins(c,p,m) ?? ""))
+      .concat(keys.map(k=>c[k]??"")).map(q).join(",")); }
+  return lines.join("\n");
+}
+function dl(text,name,mime){ const a=document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text],{type:mime})); a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000); }
+
+/* ================================================== Google Maps travel times
+   The key is NOT in this file. It lives in your browser's local storage, so the
+   page can be public without leaking it. Restrict it by HTTP referrer anyway. */
+const GKEY = "apartment-hunter-gmaps-key";
+const getKey = () => { try{ return (CFG.mapsApiKey||"") || localStorage.getItem(GKEY)
+    || localStorage.getItem("krk-gmaps-key") || ""; }catch(e){ return CFG.mapsApiKey||""; } };
+let mapsLoading = null;
+function loadMaps(key){
+  if(window.google?.maps?.importLibrary) return Promise.resolve();
+  if(mapsLoading) return mapsLoading;
+  mapsLoading = new Promise((res,rej)=>{
+    const s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(key)+"&v=weekly";
+    s.async = true;
+    s.onload = res;
+    s.onerror = () => rej(new Error("Google Maps would not load — check the key, that Maps "+
+      "JavaScript API and Routes API are enabled, and the referrer restrictions."));
+    document.head.appendChild(s);
+  });
+  return mapsLoading;
+}
+async function geocode(address){
+  const {Geocoder} = await google.maps.importLibrary("geocoding");
+  const r = await new Geocoder().geocode({address, region:S.params.region||"pl"});
+  if(!r.results?.length) throw new Error("could not find “"+address+"” on the map");
+  const l = r.results[0].geometry.location;
+  return {lat:l.lat(), lng:l.lng()};
+}
+/* Routes library first (DistanceMatrixService was deprecated in Feb 2026);
+   fall back to the legacy service, which still works, if the new one is absent. */
+async function minutesBetween(from, to, mode){
+  try{
+    const {RouteMatrix} = await google.maps.importLibrary("routes");
+    if(RouteMatrix?.computeRouteMatrix){
+      const {UnitSystem} = await google.maps.importLibrary("core");
+      const resp = await RouteMatrix.computeRouteMatrix({
+        origins:[{lat:from.lat, lng:from.lng}], destinations:[{lat:to.lat, lng:to.lng}],
+        travelMode: mode, units: UnitSystem.METRIC,
+        fields:["distanceMeters","durationMillis","condition"]});
+      const els = []; for await (const e of (resp[Symbol.asyncIterator] ? resp : [])) els.push(e);
+      const list = els.length ? els : (Array.isArray(resp) ? resp : resp?.elements || []);
+      const ms = list[0]?.durationMillis ?? list[0]?.duration?.value*1000;
+      if(ms) return Math.round(ms/60000);
+    }
+  }catch(e){ console.warn("RouteMatrix failed, falling back", e); }
+  const {DistanceMatrixService} = await google.maps.importLibrary("routes");
+  const r = await new DistanceMatrixService().getDistanceMatrix({
+    origins:[from], destinations:[to], travelMode:mode, unitSystem:0});
+  const el = r.rows?.[0]?.elements?.[0];
+  if(!el || el.status!=="OK") throw new Error("no route for "+MODES[mode]+" ("+(el?.status||"?")+")");
+  return Math.round(el.duration.value/60);
+}
+
+async function calcTravel(c){
+  let key = getKey();
+  if(!key){
+    dialog("Google Maps key", `
+      <div class="note">Travel times need a Google Maps Platform key with <b>Maps JavaScript API</b>,
+      <b>Geocoding API</b> and <b>Routes API</b> enabled.</div>
+      <div class="note warn">Restrict the key by HTTP referrer to your GitHub Pages domain before you
+      use it. This page is public; an unrestricted key can be copied and billed to you. The key is
+      stored only in this browser, never written into the page.</div>
+      <div class="f"><label>API key</label><input id="gk" type="password" placeholder="AIza..."></div>`,
+      [{label:"Cancel"},{label:"Save & calculate", primary:true, act(){
+          const v = $("#gk").value.trim(); if(!v) return;
+          try{ localStorage.setItem(GKEY, v); }catch(e){}
+          calcTravel(c); }}]);
+    return;
+  }
+  const btn = $("#bCalc"); const say = t => { if(btn) btn.textContent = t; };
+  try{
+    say("loading…"); await loadMaps(key);
+    if(!c.lat || !c.lon){
+      if(!c.address) throw new Error("give the flat an address first");
+      say("geocoding…"); const city = (S.params.city||"").trim();
+      const needsCity = city && !new RegExp(city.slice(0,4),"i").test(c.address);
+      const g = await geocode(c.address + (needsCity ? ", "+city : ""));
+      c.lat = g.lat; c.lon = g.lng; save();
+    }
+    c.travel = c.travel || {};
+    const fails = [];
+    for(const p of S.places){
+      if(!p.lat || !p.lon){
+        if(!p.address){ fails.push(p.name+": no address"); continue; }
+        const g = await geocode(p.address); p.lat = g.lat; p.lon = g.lng; save();
+      }
+      c.travel[p.id] = c.travel[p.id] || {};
+      for(const m of p.modes){
+        say(p.name+" · "+MODES[m.mode]+"…");
+        try{
+          c.travel[p.id][m.mode] = await minutesBetween(
+            {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode);
+          save();
+        }catch(e){ fails.push(`${p.name} by ${MODES[m.mode]}: ${e.message}`); }
+      }
+    }
+    save(); render();
+    if(fails.length) alert("Some legs could not be routed:\n\n• " + fails.join("\n• ") +
+      "\n\nGoogle does not offer every mode in every city; type those in by hand.");
+  }catch(e){
+    say("Calculate");
+    alert("Travel times failed:\n\n" + e.message);
+  }
+}
+
+/* ================================================== add from link */
+const HAS_COWORK = typeof window.cowork === "object" && window.cowork
+                   && typeof window.cowork.callMcpTool === "function";
+$("#bFetch").onclick = () => {
+  const explain = HAS_COWORK
+    ? `<div class="note">Drives your Chrome tab through Claude to read the listing.</div>`
+    : `<div class="note">A page served from GitHub Pages or a local file cannot fetch olx.pl —
+       browsers block cross-origin requests and there is no way round it from here. This queues
+       the link and creates a stub row; ask Claude to fill it in, then Import the JSON.</div>`;
+  dialog("Add from link", explain +
+    `<div class="f"><label>Listing URL</label><input id="urlIn" type="url"
+      placeholder="https://www.olx.pl/d/oferta/..."></div>
+     <div id="fetchMsg" class="tiny" style="margin-top:9px"></div>`,
+    HAS_COWORK ? [{label:"Cancel"},{label:"Fetch", primary:true, close:false, act:doFetch}]
+      : [{label:"Cancel"},{label:"Add stub", primary:true, act(){
+          const u = $("#urlIn").value.trim(); if(!u) return;
+          const c = {id:uid(), added:Date.now(), link:u, photos:[], travel:{},
+                     notes:"Queued — ask Claude to read this listing."};
+          S.candidates.unshift(c); selId = c.id; save(); render(); }}]);
+};
+async function doFetch(){
+  const url = $("#urlIn").value.trim(), msg = $("#fetchMsg");
+  if(!url){ msg.textContent = "Paste a URL first."; return; }
+  msg.textContent = "Opening in Chrome…";
+  try{
+    const ctx = await callTool("mcp__claude-in-chrome__tabs_context_mcp",{createIfEmpty:true});
+    const tabId = (ctx.availableTabs||[])[0]?.tabId;
+    if(!tabId) throw new Error("no Chrome tab");
+    await callTool("mcp__claude-in-chrome__navigate",{tabId,url});
+    msg.textContent = "Reading…";
+    const out = await callTool("mcp__claude-in-chrome__javascript_tool",
+      {action:"javascript_exec", tabId, text:EXTRACTOR});
+    const data = typeof out==="string" ? JSON.parse(out) : out;
+    const c = Object.assign({id:uid(),added:Date.now(),photos:[],travel:{}}, data, {link:url});
+    S.candidates.unshift(c); selId = c.id; save(); render();
+    msg.textContent = "Added."; setTimeout(()=>$("#dlg").close(), 800);
+  }catch(e){ msg.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(e.message)}</span>`; }
+}
+async function callTool(name,args){
+  const r = await window.cowork.callMcpTool(name,args);
+  if(r.isError) throw new Error(r.content?.[0]?.text || "tool error");
+  if(r.structuredContent) return r.structuredContent;
+  const t = r.content?.[0]?.text ?? "";
+  try{ return JSON.parse(t); }catch(e){ return t; }
+}
+const EXTRACTOR = `(() => {
+  const out = {};
+  const nd = document.getElementById('__NEXT_DATA__');
+  if(nd){
+    const ad = JSON.parse(nd.textContent).props.pageProps.ad, t = ad.target||{};
+    out.address = ad.title; out.area = t.Area ? Number(t.Area) : undefined;
+    out.rent = t.Price; out.admin = t.Rent; out.kaucja = t.Deposit;
+    if((t.Heating||[]).includes('urban')) out.heating = 'Yes';
+    if((t.Extras_types||[]).includes('balcony')) out.balcony = 'Yes';
+    const eq = t.Equipment_types||[];
+    if(eq.includes('dishwasher')&&eq.includes('washing_machine')&&eq.includes('fridge'))
+      out.appliances = '3';
+    if(ad.location?.coordinates){ out.lat = ad.location.coordinates.latitude;
+      out.lon = ad.location.coordinates.longitude; }
+    out.notes = 'Auto-filled from Otodom.';
+  } else {
+    const ps = [...document.querySelectorAll('[data-testid="ad-parameters-container"] p')]
+                 .map(e=>e.innerText.trim());
+    const P = k => { const h = ps.find(p=>p.toLowerCase().startsWith(k.toLowerCase()));
+                     return h ? h.split(':').slice(1).join(':').trim() : null; };
+    const n = s => s ? Number((s.match(/[\\d\\s]+/)||[''])[0].replace(/\\s/g,'')) : null;
+    const d = (document.querySelector('[data-cy="ad_description"]')?.innerText||'').replace(/\\s+/g,' ');
+    out.address = document.title.split('•')[0].trim();
+    out.rent = n(document.querySelector('[data-testid="ad-price-container"]')?.innerText);
+    out.admin = n(P('Czynsz')); out.area = n(P('Powierzchnia'));
+    if(P('Winda')==='Tak') out.elevator = 'Yes';
+    const kk = d.match(/kaucj\\w*[^.]{0,60}?(\\d[\\d\\s]{2,})\\s*(zł|pln)/i);
+    if(kk) out.kaucja = Number(kk[1].replace(/\\s/g,''));
+    if(/nie ma gazu|brak gazu|płyta indukcyjna/i.test(d)) out.nogas = 'Yes';
+    if(/z sieci miejskiej|ogrzewanie miejskie/i.test(d)) out.heating = 'Yes';
+    if(/osobn\\w* sypialni|oddzieln\\w* sypialni/i.test(d)) out.bedroom = 'Yes';
+    if(/balkon|taras/i.test(d)) out.balcony = 'Yes';
+    if(/od zaraz/i.test(d)) out.availfrom = new Date().toISOString().slice(0,10);
+    out.photos = [...new Set([...document.querySelectorAll('img')].map(i=>i.src)
+      .filter(s=>/olxcdn/.test(s)))].map(s=>s.split(';s=')[0]).slice(0,12);
+    out.notes = 'Auto-filled from OLX. Check kaucja and provision.';
+  }
+  return JSON.stringify(out);
+})()`;
+
+/* ================================================== Firebase sync
+   One document per signed-in user: users/{uid}. Security rules mean nobody
+   else can read or write it, which is what makes a public page safe to host.
+   Conflict handling is last-write-wins on a timestamp — deliberately simple.
+   Edit the same flat on two devices while offline and the later save wins. */
+const FB_VER = "10.14.1";
+const FB = {app:null, auth:null, db:null, uid:null, unsub:null, ready:false};
+let syncTimer = null, applyingRemote = false;
+
+function fbConf(){
+  const c = Object.assign({}, CFG.firebase||{});
+  try{ const ov = JSON.parse(localStorage.getItem("ah-firebase")||"null"); if(ov) Object.assign(c, ov); }
+  catch(e){}
+  return (c.apiKey && c.appId && c.projectId) ? c : null;
+}
+function setSync(state, text){
+  const el = $("#syncPill"); if(!el) return;
+  el.className = "sync" + (state ? " "+state : "");
+  el.textContent = text;
+}
+async function initFirebase(){
+  const conf = fbConf();
+  if(!conf){ setSync("", "local only"); return; }
+  try{
+    setSync("busy","connecting…");
+    const [{initializeApp}, authMod, fsMod] = await Promise.all([
+      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`),
+      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-auth.js`),
+      import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`)
+    ]);
+    FB.app  = initializeApp(conf);
+    FB.auth = authMod.getAuth(FB.app);
+    FB.db   = fsMod.getFirestore(FB.app);
+    FB.mods = {auth:authMod, fs:fsMod};
+    FB.ready = true;
+    authMod.onAuthStateChanged(FB.auth, u => onAuth(u));
+  }catch(e){
+    console.error(e); setSync("err","sync unavailable");
+  }
+}
+async function onAuth(u){
+  const {fs} = FB.mods;
+  if(FB.unsub){ FB.unsub(); FB.unsub = null; }
+  if(!u){ FB.uid = null; setSync("","not signed in");
+    $("#bAcct").textContent = "Sign in"; return; }
+  FB.uid = u.uid;
+  $("#bAcct").textContent = (u.displayName||u.email||"Account").split(" ")[0];
+  setSync("busy","syncing…");
+  const ref = fs.doc(FB.db, "users", u.uid);
+  try{
+    const snap = await fs.getDoc(ref);
+    if(!snap.exists()){
+      await pushRemote();                       // first sign-in: seed from this browser
+      setSync("ok","synced");
+    }else{
+      const remote = snap.data();
+      const localT  = Number(S.updatedAt||0), remoteT = Number(remote.updatedAt||0);
+      if(remoteT > localT) adoptRemote(remote);
+      else if(localT > remoteT) await pushRemote();
+      setSync("ok","synced");
+    }
+    FB.unsub = fs.onSnapshot(ref, s => {
+      if(!s.exists() || !s.data()) return;
+      const d = s.data();
+      if(Number(d.updatedAt||0) > Number(S.updatedAt||0)) adoptRemote(d);
+    }, err => { console.error(err); setSync("err","sync error"); });
+  }catch(e){
+    console.error(e);
+    setSync("err", /permission/i.test(e.message) ? "rules deny access" : "sync error");
+  }
+}
+function adoptRemote(d){
+  applyingRemote = true;
+  if(d.params)  S.params  = Object.assign({}, DEFAULT_PARAMS,  d.params);
+  if(d.weights) S.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights);
+  if(d.places)  S.places  = d.places;
+  if(d.candidates) S.candidates = d.candidates;
+  S.updatedAt = d.updatedAt || Date.now();
+  if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+  applyingRemote = false;
+  render(); setSync("ok","synced");
+}
+async function pushRemote(){
+  if(!FB.ready || !FB.uid) return;
+  const {fs} = FB.mods;
+  const payload = {params:S.params, weights:S.weights, places:S.places,
+                   candidates:S.candidates, updatedAt: S.updatedAt || Date.now(),
+                   schema: SCHEMA};
+  await fs.setDoc(fs.doc(FB.db, "users", FB.uid), payload);
+}
+function queueSync(){
+  if(!FB.ready || !FB.uid || applyingRemote) return;
+  setSync("busy","saving…");
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async ()=>{
+    try{ await pushRemote(); setSync("ok","synced"); }
+    catch(e){ console.error(e); setSync("err","save failed"); }
+  }, 1200);
+}
+/* every local save also stamps a time and schedules a push */
+const _save = save;
+save = function(){ if(!applyingRemote) S.updatedAt = Date.now(); _save(); queueSync(); };
+
+$("#bAcct").onclick = async () => {
+  if(!fbConf()) return setupDialog();
+  if(!FB.ready) await initFirebase();
+  if(!FB.ready) return setupDialog();
+  const {auth} = FB.mods;
+  if(FB.uid){
+    dialog("Account", `<div class="note">Signed in. Data lives in Firestore under your
+      account and syncs to any browser you sign in from.</div>`,
+      [{label:"Close"},{label:"Sign out", act:()=>auth.signOut(FB.auth)}]);
+    return;
+  }
+  try{
+    const p = new auth.GoogleAuthProvider();
+    await auth.signInWithPopup(FB.auth, p);
+  }catch(e){
+    alert("Sign-in failed:\n\n" + e.message +
+      "\n\nCheck that Google is enabled under Authentication → Sign-in method, and that this " +
+      "domain is listed under Authentication → Settings → Authorized domains.");
+  }
+};
+function setupDialog(){
+  const c = fbConf() || CFG.firebase || {};
+  dialog("Connect Firebase", `
+    <div class="note">Firebase Console → Project settings → Your apps → Web app → SDK setup.
+    Only the API key and App ID are missing; the rest follow from the project.
+    Saved here they stay in this browser — put them in <code>config.js</code> and commit
+    to make them apply everywhere.</div>
+    <div class="f"><label>apiKey</label><input id="cKey" value="${esc(c.apiKey||"")}"></div>
+    <div class="f" style="margin-top:8px"><label>appId</label>
+      <input id="cApp" value="${esc(c.appId||"")}" placeholder="1:1085228370812:web:…"></div>
+    <div class="f" style="margin-top:8px"><label>projectId</label>
+      <input id="cProj" value="${esc(c.projectId||"")}"></div>`,
+    [{label:"Cancel"},{label:"Save & connect", primary:true, act(){
+      const conf = {apiKey:$("#cKey").value.trim(), appId:$("#cApp").value.trim(),
+        projectId:$("#cProj").value.trim(),
+        authDomain:(c.authDomain)||($("#cProj").value.trim()+".firebaseapp.com"),
+        storageBucket:c.storageBucket||"", messagingSenderId:c.messagingSenderId||""};
+      try{ localStorage.setItem("ah-firebase", JSON.stringify(conf)); }catch(e){}
+      FB.ready = false; initFirebase();
+    }}]);
+}
+
+/* ================================================== map + routes */
+const MAP = {map:null, markers:[], renderers:[], sig:null};
+const ROUTE_COLOR = {BICYCLING:"#2f855a", TRANSIT:"#3272c4", WALKING:"#8a6d13", DRIVING:"#96521f"};
+
+async function drawMap(c){
+  const host = $("#mapBox"); if(!host) return;
+  const key = getKey();
+  if(!key){ host.innerHTML = `<div class="empty">Add a Google Maps key to see the map —
+    it is in config.js, or press Calculate on the travel panel.</div>`; return; }
+  if(!c.lat || !c.lon){ host.innerHTML = `<div class="empty">Press
+    <b>Calculate</b> above to place this flat on the map.</div>`; MAP.sig = null; return; }
+  // Routing costs money and time, so only redraw when the flat or the places move.
+  const sig = [c.id, c.lat, c.lon, S.places.map(p=>[p.id,p.lat,p.lon,
+    p.modes.map(m=>m.mode).join("/")].join(",")).join(";")].join("|");
+  if(sig === MAP.sig && MAP.map && host.firstChild) return;
+  MAP.sig = sig;
+  try{
+    await loadMaps(key);
+    const {Map} = await google.maps.importLibrary("maps");
+    const here = {lat:c.lat, lng:c.lon};
+    MAP.map = new Map(host, {center:here, zoom:13, mapTypeControl:false,
+      streetViewControl:false, fullscreenControl:false});
+    MAP.markers.forEach(m=>m.setMap&&m.setMap(null)); MAP.markers = [];
+    MAP.renderers.forEach(r=>r.setMap(null)); MAP.renderers = [];
+    const bounds = new google.maps.LatLngBounds();
+    const flat = new google.maps.Marker({map:MAP.map, position:here, title:c.address||"Flat",
+      label:{text:"🏠", fontSize:"16px"}});
+    MAP.markers.push(flat); bounds.extend(here);
+
+    const {DirectionsService, DirectionsRenderer} = await google.maps.importLibrary("routes");
+    const svc = new DirectionsService();
+    for(const p of S.places){
+      if(!p.lat || !p.lon) continue;
+      const to = {lat:p.lat, lng:p.lon};
+      bounds.extend(to);
+      MAP.markers.push(new google.maps.Marker({map:MAP.map, position:to, title:p.name,
+        label:{text:p.name[0], color:"#fff", fontWeight:"700"}}));
+      for(const m of p.modes){
+        try{
+          const res = await svc.route({origin:here, destination:to, travelMode:m.mode});
+          const r = new DirectionsRenderer({map:MAP.map, directions:res, suppressMarkers:true,
+            preserveViewport:true,
+            polylineOptions:{strokeColor:ROUTE_COLOR[m.mode]||"#666", strokeWeight:4,
+              strokeOpacity: m.mode==="TRANSIT" ? 0.65 : 0.9}});
+          MAP.renderers.push(r);
+          const leg = res.routes?.[0]?.legs?.[0];
+          if(leg?.duration?.value){
+            c.travel = c.travel||{}; c.travel[p.id] = c.travel[p.id]||{};
+            c.travel[p.id][m.mode] = Math.round(leg.duration.value/60);
+          }
+        }catch(e){ console.warn("no route", p.name, m.mode, e); }
+      }
+    }
+    save();
+    // fill the travel inputs in place rather than re-rendering (that would loop)
+    document.querySelectorAll("input[data-pl]").forEach(el=>{
+      const v = c.travel?.[el.dataset.pl]?.[el.dataset.mo];
+      if(v!=null) el.value = v;
+    });
+    renderList(); refreshBox();
+    MAP.map.fitBounds(bounds, 48);
+  }catch(e){
+    MAP.sig = null;
+    host.innerHTML = `<div class="empty">Map failed: ${esc(e.message)}</div>`;
+  }
+}
+
+/* ================================================================ boot */
+$("#lb").onclick = () => { $("#lb").style.display = "none"; };
+$("#sortBy").onchange = renderList;
+document.addEventListener("keydown", e => { if(e.key==="Escape") $("#lb").style.display="none"; });
+if(S.migrated){
+  const b = document.createElement("div");
+  b.className = "note"; b.style.cssText = "margin:10px 14px 0";
+  b.innerHTML = esc(S.migrated) + ` <button class="btn sm" style="margin-left:8px">Got it</button>`;
+  b.querySelector("button").onclick = () => { delete S.migrated; save(); b.remove(); };
+  document.body.insertBefore(b, $(".wrap")); save();
+}
+$("#tagline").textContent = fbConf()
+  ? "Signed-in data syncs across your devices."
+  : "Saved in this browser — connect Firebase or use Export/Import to sync.";
+render();
+initFirebase();
+</script>
+</body>
+</html>

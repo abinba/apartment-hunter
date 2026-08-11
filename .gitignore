@@ -1,0 +1,12 @@
+# Service-account / admin credentials — must never be committed.
+# These bypass Firestore security rules entirely.
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+apartment-hunter-*.json
+firebase-debug.log
+.firebase/
+
+# Local data dumps
+*.local.json
+node_modules/
+.DS_Store
