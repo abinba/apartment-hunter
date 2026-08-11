@@ -29,6 +29,12 @@ window.APP_CONFIG = {
   // Directions APIs, restricted by HTTP referrer to the domains you serve from.
   mapsApiKey: "",
 
+  // Only these signed-in Google accounts may load Maps. Leave empty and any
+  // signed-in account can — which still keeps random visitors from spending
+  // your quota, but is looser. Not a security boundary: the key is in the page
+  // either way. Daily quota caps in Cloud Console are the real limit.
+  allowedEmails: ["you@example.com"],
+
   // Appended to candidate addresses that do not name a city, when geocoding.
   defaultCity: "Kraków",
   defaultRegion: "pl"

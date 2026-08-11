@@ -170,6 +170,12 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   margin-right:5px;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
 .maplegend b{color:var(--ink);font-weight:650}
 .maplegend .sel{margin-left:auto;font-weight:650;color:var(--ink)}
+.modechk{display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;
+  padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:#fff;
+  transition:.13s ease;color:var(--muted)}
+.modechk:hover{border-color:#c6d1de}
+.modechk.on{background:#eef4fb;border-color:#bcd3ee;color:var(--ink);font-weight:650}
+.modechk input{margin:0;width:13px;height:13px;accent-color:var(--accent)}
 .maplegend select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff;
   font-size:11.5px}
 .cand{scroll-margin-top:80px}
@@ -464,6 +470,7 @@ function load(){
       d.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights||{});
       d.candidates = d.candidates||[];
       d.places = d.places || DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
+      d.ui = d.ui || {hiddenModes:[]};
       const v = d.v||1;
       if(v < 2){ d.params.overPct = DEFAULT_PARAMS.overPct; d.weights.yearly = DEFAULT_WEIGHTS.yearly; }
       if(v < 3){
@@ -482,7 +489,7 @@ function load(){
       return d;
     }
   }catch(e){ console.warn("could not read saved data", e); }
-  return {v:SCHEMA, params:{...DEFAULT_PARAMS}, weights:{...DEFAULT_WEIGHTS},
+  return {v:SCHEMA, params:{...DEFAULT_PARAMS}, weights:{...DEFAULT_WEIGHTS}, ui:{hiddenModes:[]},
           places:DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p))),
           candidates:SEED.map(s=>JSON.parse(JSON.stringify(s)))};
 }
@@ -1053,6 +1060,31 @@ const GKEY = "apartment-hunter-gmaps-key";
 const getKey = () => { try{ return (CFG.mapsApiKey||"") || localStorage.getItem(GKEY)
     || localStorage.getItem("krk-gmaps-key") || ""; }catch(e){ return CFG.mapsApiKey||""; } };
 let mapsLoading = null, mapsAuthFailed = false;
+
+/* ---- who is allowed to spend your Maps quota -----------------------------
+   The key is in the page, so this is not a security boundary — anyone who
+   loads the page can read it out. What it does do is stop a stray visitor
+   from triggering map loads and route calls just by opening the URL, which
+   is the realistic cost risk. The hard limits are the referrer restriction
+   and per-API daily quota caps in Cloud Console. Set both.               */
+function allowedEmails(){
+  const raw = CFG.allowedEmails;
+  const list = Array.isArray(raw) ? raw : String(raw||"").split(/[,\s]+/);
+  return list.map(s=>String(s||"").trim().toLowerCase()).filter(Boolean);
+}
+function mapsAllowed(){
+  if(!fbConf()) return true;                 // no auth configured: local use
+  const list = allowedEmails();
+  const email = (FB.email||"").toLowerCase();
+  if(!FB.uid) return false;                  // must be signed in
+  return list.length === 0 ? true : list.includes(email);
+}
+function mapsGateReason(){
+  if(mapsAllowed()) return null;
+  if(!FB.uid) return "Sign in to load the map. It is kept behind sign-in so that "
+                   + "opening this page does not spend the owner's Maps quota.";
+  return "This account is not on the allow list for maps.";
+}
 /* Google calls this global when the key is rejected — otherwise the only clue
    is a console message and a grey box, which is a miserable way to find out. */
 window.gm_authFailure = function(){
@@ -1114,6 +1146,8 @@ async function minutesBetween(from, to, mode, place){
 }
 
 async function calcTravel(c){
+  const gate = mapsGateReason();
+  if(gate){ alert(gate); return; }
   let key = getKey();
   if(!key){
     dialog("Google Maps key", `
@@ -1311,9 +1345,10 @@ async function initFirebase(){
 async function onAuth(u){
   const {fs} = FB.mods;
   if(FB.unsub){ FB.unsub(); FB.unsub = null; }
-  if(!u){ FB.uid = null; setSync("","not signed in");
-    $("#bAcct").textContent = "Sign in"; return; }
-  FB.uid = u.uid;
+  if(!u){ FB.uid = null; FB.email = null; setSync("","not signed in");
+    $("#bAcct").textContent = "Sign in"; initMap(); return; }
+  FB.uid = u.uid; FB.email = u.email || "";
+  initMap();                                   // sign-in unlocks the map
   $("#bAcct").textContent = (u.displayName||u.email||"Account").split(" ")[0];
   setSync("busy","syncing…");
   const ref = fs.doc(FB.db, "users", u.uid);
@@ -1344,6 +1379,7 @@ function adoptRemote(d){
   if(d.params)  S.params  = Object.assign({}, DEFAULT_PARAMS,  d.params);
   if(d.weights) S.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights);
   if(d.places)  S.places  = d.places;
+  if(d.ui)      S.ui      = d.ui;
   if(d.candidates) S.candidates = d.candidates;
   S.updatedAt = d.updatedAt || Date.now();
   if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
@@ -1354,7 +1390,7 @@ function adoptRemote(d){
 async function pushRemote(){
   if(!FB.ready || !FB.uid) return;
   const {fs} = FB.mods;
-  const payload = {params:S.params, weights:S.weights, places:S.places,
+  const payload = {params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
                    candidates:S.candidates, updatedAt: S.updatedAt || Date.now(),
                    schema: SCHEMA};
   await fs.setDoc(fs.doc(FB.db, "users", FB.uid), payload);
@@ -1486,6 +1522,12 @@ async function initMap(){
       <b>Keys</b> button to see the map.</div>`;
     renderLegend(); return;
   }
+  const gate = mapsGateReason();
+  if(gate){
+    MAP.ready = false;
+    host.innerHTML = `<div class="empty" style="line-height:1.7">${esc(gate)}</div>`;
+    renderLegend(); return;
+  }
   try{
     await loadMaps(key);
     const {Map} = await google.maps.importLibrary("maps");
@@ -1563,9 +1605,12 @@ async function focusCandidate(c, animate = true){
   }
   if(animate) MAP.map.panTo(here);
 
-  const sig = [c.id, c.lat, c.lon, S.params.departHour,
+  // geoSig keys the cache (what a route *is*); sig also covers the display
+  // filter, so toggling Bike/Transit redraws from cache without re-billing.
+  const geoSig = [c.id, c.lat, c.lon, S.params.departHour,
     S.places.map(p=>[p.id,p.lat,p.lon,p.departHour,p.modes.map(m=>m.mode).join("/")].join(","))
       .join(";")].join("|");
+  const sig = geoSig + "||" + shownModes().join("+");
   if(sig === MAP.routeSig) return;                    // already on screen
   MAP.routeSig = sig;
   clearRoutes();
@@ -1579,10 +1624,11 @@ async function focusCandidate(c, animate = true){
       if(!p.lat || !p.lon) continue;
       bounds.extend({lat:p.lat, lng:p.lon});
       for(const m of p.modes){
+        if(!modeShown(m.mode)) continue;      // display filter — scoring is unaffected
         try{
           // Every route is a billed request, and flipping between two flats used
           // to re-buy both. Cache on the same signature the redraw is keyed to.
-          const ck = sig + "|" + p.id + "|" + m.mode;
+          const ck = geoSig + "|" + p.id + "|" + m.mode;
           let res = MAP.cache.get(ck);
           if(!res){
             res = await svc.route(Object.assign({
@@ -1628,19 +1674,49 @@ async function focusCandidate(c, animate = true){
   }
 }
 
+/* Which modes get drawn. Purely a display filter — hiding transit does not
+   change any score, the stored minutes are still counted. */
+function availableModes(){ return [...new Set(S.places.flatMap(p=>p.modes.map(m=>m.mode)))]; }
+function shownModes(){
+  const avail = availableModes();
+  const hidden = S.ui?.hiddenModes || [];
+  const on = avail.filter(m=>!hidden.includes(m));
+  return on.length ? on : avail;      // never hide everything
+}
+const modeShown = m => shownModes().includes(m);
+function toggleMode(m){
+  S.ui = S.ui || {};
+  const hidden = new Set(S.ui.hiddenModes || []);
+  hidden.has(m) ? hidden.delete(m) : hidden.add(m);
+  if(hidden.size >= availableModes().length) hidden.delete(m);   // keep one on
+  S.ui.hiddenModes = [...hidden];
+  save();
+  MAP.routeSig = null;
+  const c = S.candidates.find(x=>x.id===selId);
+  if(c && MAP.ready) focusCandidate(c, false);
+  renderLegend();
+}
+
 function renderLegend(){
   const el = $("#mapLegend"); if(!el) return;
-  const modes = [...new Set(S.places.flatMap(p=>p.modes.map(m=>m.mode)))];
   const c = S.candidates.find(x=>x.id===selId);
   const hours = [6,7,8,8.5,9,9.5,10,11,12,14,17,18];
   el.innerHTML =
-    modes.map(m=>`<span><i style="background:${ROUTE_COLOR[m]||"#666"}"></i>${MODES[m]}</span>`).join("") +
-    `<span><span class="dot" style="background:#25406e"></span>your places</span>` +
-    `<span><span class="dot" style="background:#63be7b"></span>candidates, coloured by match</span>` +
+    availableModes().map(m=>{
+      const on = modeShown(m);
+      return `<label class="modechk ${on?"on":""}" data-mode="${m}">
+        <input type="checkbox" ${on?"checked":""}>
+        <i style="background:${ROUTE_COLOR[m]||"#666"};opacity:${on?1:.3}"></i>${MODES[m]}</label>`;
+    }).join("") +
+    `<span><span class="dot" style="background:#25406e"></span>places</span>` +
+    `<span><span class="dot" style="background:#63be7b"></span>candidates by match</span>` +
     `<span>leaving at <select id="departSel">${hours.map(h=>
       `<option value="${h}" ${Number(S.params.departHour)===h?"selected":""}>${
         String(Math.floor(h)).padStart(2,"0")}:${h%1?"30":"00"}</option>`).join("")}</select></span>` +
     (c ? `<span class="sel">${esc(c.address||"—")}</span>` : "");
+  el.querySelectorAll(".modechk").forEach(lb=>{
+    lb.onclick = e => { e.preventDefault(); toggleMode(lb.dataset.mode); };
+  });
   const sel = $("#departSel");
   if(sel) sel.onchange = () => {
     S.params.departHour = Number(sel.value); save();
