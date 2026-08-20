@@ -1,0 +1,62 @@
+# /etc/nginx/sites-available/apartment-hunter
+#
+# Replace HOSTNAME everywhere with your sslip.io name — your public IP with
+# dashes instead of dots, e.g. 51-77-203-14.sslip.io
+#
+# Do not add CORS headers here. FastAPI already sends them, driven by
+# CORS_ORIGINS in .env, and a second set makes browsers reject the response
+# ("multiple values in Access-Control-Allow-Origin").
+
+# ---------------------------------------------------------------- port 80
+# Kept open permanently: Let's Encrypt re-validates over HTTP-01 at renewal.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name HOSTNAME;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ---------------------------------------------------------------- port 443
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name HOSTNAME;
+
+    ssl_certificate     /etc/letsencrypt/live/HOSTNAME/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/HOSTNAME/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    # The scraper. Trailing slashes on both sides strip the prefix, so the
+    # container sees /api/scrape rather than /apartment-hunter/api/scrape.
+    location /apartment-hunter/ {
+        proxy_pass         http://127.0.0.1:8080/;
+
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        # A listing with twelve photographs takes a few minutes end to end.
+        # The default 60s would cut the reconcile pass off mid-flight.
+        proxy_connect_timeout 15s;
+        proxy_send_timeout   300s;
+        proxy_read_timeout   300s;
+
+        proxy_buffering off;          # progress polling wants to be prompt
+        client_max_body_size 2m;
+    }
+
+    # Anything else on this host is not yours to serve.
+    location / {
+        return 404;
+    }
+}
