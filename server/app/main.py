@@ -70,6 +70,12 @@ app.add_middleware(
 )
 
 JOBS: dict[str, dict] = {}
+# asyncio only holds a *weak* reference to a running task. Without keeping one
+# ourselves the scrape can be garbage-collected mid-flight, which cancels it
+# with CancelledError — a BaseException, so `except Exception` never sees it and
+# the job silently sits at "queued" for ever. This is the documented footgun in
+# asyncio.create_task, and it is exactly what happened.
+BACKGROUND: set[asyncio.Task] = set()
 DAILY: dict[str, list[float]] = defaultdict(list)
 
 # Weighted so the bar moves at a believable pace: the photo pass is the slow one.
@@ -93,12 +99,22 @@ class ScrapeIn(BaseModel):
 
 
 def _set(job_id: str, stage: str, **extra):
+    """Update a job's stage.
+
+    `progress` is popped out of extra rather than passed alongside the explicit
+    keyword: dict.update() raises TypeError on a duplicate key, and because the
+    error handler itself called _set(..., progress=100), a failed scrape used to
+    crash while recording its own failure — leaving the job stuck at "queued"
+    with nothing in the log.
+    """
     j = JOBS.get(job_id)
     if not j:
         return
-    j.update(stage=stage, stage_label=STAGE_LABEL.get(stage, stage),
-             progress=STAGE_PCT.get(stage, j.get("progress", 0)),
-             updated=time.time(), **extra)
+    j["stage"] = stage
+    j["stage_label"] = STAGE_LABEL.get(stage, stage)
+    j["progress"] = extra.pop("progress", STAGE_PCT.get(stage, j.get("progress", 0)))
+    j["updated"] = time.time()
+    j.update(extra)
 
 
 def _sweep():
@@ -108,14 +124,42 @@ def _sweep():
         JOBS.pop(k, None)
 
 
+def _task_finished(job_id: str, task: "asyncio.Task"):
+    """A task that dies without reaching done/error would leave the browser
+    polling for ever. Record the reason instead."""
+    j = JOBS.get(job_id)
+    if not j or j.get("stage") in ("done", "error"):
+        return
+    if task.cancelled():
+        _set(job_id, "error", error="the scrape was cancelled before finishing",
+             progress=100)
+        log.error("job %s was cancelled", job_id)
+        return
+    exc = task.exception()
+    _set(job_id, "error", progress=100,
+         error=f"{type(exc).__name__}: {exc}"[:400] if exc
+               else "the scrape stopped without reporting a result")
+    if exc:
+        log.error("job %s died: %r", job_id, exc)
+
+
 async def run_job(job_id: str, url: str, cfg: Config, uid: str):
+    log.info("job %s starting", job_id)
     try:
         # The field list comes from this user's criteria, so anything added in
         # the admin panel is extracted from the very next listing — no deploy,
         # no code change. Falls back to the built-in list if the DB is empty.
-        async with SessionLocal() as s:
-            crits = (await s.execute(
-                select(Criterion).where(Criterion.uid == uid))).scalars().all()
+        async def _load_criteria():
+            async with SessionLocal() as s:
+                return (await s.execute(
+                    select(Criterion).where(Criterion.uid == uid))).scalars().all()
+        try:
+            # wait_for rather than asyncio.timeout: works on 3.8+ and is easy to
+            # test. A stalled pool used to leave the job at "queued" for ever.
+            crits = await asyncio.wait_for(_load_criteria(), timeout=20)
+        except asyncio.TimeoutError:
+            raise RuntimeError("timed out reading criteria from the database "
+                               "— is Postgres reachable?") from None
         ls = LiveSchema(fields_from_db(crits) or None)
         log.info("job %s scraping %d fields (%d photo-capable)",
                  job_id, len(ls.all_keys), len(ls.photo_keys))
@@ -160,9 +204,13 @@ async def run_job(job_id: str, url: str, cfg: Config, uid: str):
                       "lat": (listing.get("meta") or {}).get("lat"),
                       "lon": (listing.get("meta") or {}).get("lon")},
              usage=usage_sum(u1, u2, u3))
+    except asyncio.CancelledError:
+        log.error("job %s cancelled mid-flight", job_id)
+        _set(job_id, "error", error="the scrape was cancelled", progress=100)
+        raise
     except Exception as e:  # noqa: BLE001 — surfaced to the browser as job.error
         log.exception("job %s failed", job_id)
-        _set(job_id, "error", error=str(e)[:400], progress=100)
+        _set(job_id, "error", error=f"{type(e).__name__}: {e}"[:400], progress=100)
 
 
 @app.get("/api/health")
@@ -204,7 +252,11 @@ async def scrape(body: ScrapeIn, user: dict = Depends(require_user)):
                         candidate_id=body.candidate_id, stage="queued",
                         stage_label=STAGE_LABEL["queued"], progress=0,
                         created=now, updated=now)
-    asyncio.create_task(run_job(job_id, str(body.url), cfg, uid))
+    task = asyncio.create_task(run_job(job_id, str(body.url), cfg, uid))
+    BACKGROUND.add(task)
+    task.add_done_callback(BACKGROUND.discard)
+    task.add_done_callback(lambda t: _task_finished(job_id, t))
+    log.info("job %s queued for %s", job_id, body.url)
     return {"job_id": job_id, "stages": [{"key": k, "label": l, "at": p} for k, l, p in STAGES]}
 
 
