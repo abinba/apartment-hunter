@@ -38,6 +38,7 @@ jobs:
           FIREBASE_APP_ID:  ${{ secrets.FIREBASE_APP_ID }}
           MAPS_API_KEY:     ${{ secrets.MAPS_API_KEY }}
           ALLOWED_EMAILS:   ${{ secrets.ALLOWED_EMAILS }}   # comma separated
+          API_BASE:         ${{ secrets.API_BASE }}         # scraper URL, not a secret but env-specific
           # Public identifiers, no need to hide these
           FIREBASE_PROJECT_ID: apartment-hunter-41fd6
           DEFAULT_CITY: Kraków
@@ -59,6 +60,7 @@ jobs:
             },
             mapsApiKey: "${MAPS_API_KEY}",
             allowedEmails: "${ALLOWED_EMAILS}",
+            apiBase: "${API_BASE}",
             defaultCity: "${DEFAULT_CITY}",
             defaultRegion: "${DEFAULT_REGION}"
           };

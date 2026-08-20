@@ -14,3 +14,6 @@ config.js
 *.local.json
 node_modules/
 .DS_Store
+
+# Server secrets — ScrapingBee and Anthropic keys live here
+server/.env

@@ -185,6 +185,37 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   .maplegend{font-size:11px;gap:9px}
 }
 @media print{#mapPanel{display:none !important}}
+.scrapebar{margin-top:12px;padding:12px 15px}
+.sb-row{display:flex;gap:9px;align-items:center}
+.sb-row input{flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e7ee;border-radius:10px;
+  background:var(--yellow);transition:.14s ease}
+.sb-row input:focus{outline:none;border-color:#8fb4e2;background:#fff;
+  box-shadow:0 0 0 3px rgba(50,114,196,.13)}
+.sbjob{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:#fbfcfd}
+.sbjob .top{display:flex;align-items:center;gap:9px;font-size:12px}
+.sbjob .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:var(--muted)}
+.sbjob .st{font-weight:650;color:var(--ink);white-space:nowrap}
+.sbjob .pct{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.sbbar{height:6px;border-radius:4px;background:#eaeef3;margin-top:8px;overflow:hidden}
+.sbbar i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#3272c4,#1f9254);transition:width .5s ease}
+.sbbar.err i{background:var(--bad)}
+.sbsteps{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;font-size:10.5px;color:#9aa5b1}
+.sbsteps span{padding:1px 7px;border-radius:999px;background:#f1f4f7}
+.sbsteps span.on{background:#e3edf9;color:#1f4e79;font-weight:650}
+.sbsteps span.did{background:#e7f4e4;color:#2f6b2a}
+.fieldtable{width:100%;border-collapse:collapse;font-size:12.5px}
+.fieldtable td{padding:4px 6px;border-bottom:1px solid #f0f2f5;vertical-align:top}
+.fieldtable td.k{color:var(--muted);width:42%}
+.fieldtable td.v{font-weight:650}
+.conf{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;margin-left:6px;
+  font-weight:700}
+.conf.hi{background:#e7f4e4;color:#245b1f}
+.conf.mid{background:#fff4d9;color:#7a5a00}
+.conf.lo{background:#fdeae3;color:#8a2b00}
+@media(max-width:900px){.sb-row{flex-wrap:wrap}.sb-row input{width:100%}}
 @media(max-width:900px){
   .wrap{flex-direction:column;padding:9px;gap:9px}
   .col-list{position:static;flex:1;width:100%}
@@ -243,6 +274,15 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   <div class="card mapcard">
     <div id="mapBox"></div>
     <div class="maplegend" id="mapLegend"></div>
+  </div>
+
+  <div class="card scrapebar">
+    <div class="sb-row">
+      <input id="sbUrl" type="url" spellcheck="false"
+             placeholder="Paste an OLX or Otodom listing URL…">
+      <button class="btn primary" id="bScrape">Scrape</button>
+    </div>
+    <div id="sbJobs"></div>
   </div>
 </div>
 
@@ -471,6 +511,8 @@ function load(){
       d.candidates = d.candidates||[];
       d.places = d.places || DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
       d.ui = d.ui || {hiddenModes:[]};
+      d.tombstones = d.tombstones || {};
+      d.settingsAt = Number(d.settingsAt || 0);
       const v = d.v||1;
       if(v < 2){ d.params.overPct = DEFAULT_PARAMS.overPct; d.weights.yearly = DEFAULT_WEIGHTS.yearly; }
       if(v < 3){
@@ -490,6 +532,7 @@ function load(){
     }
   }catch(e){ console.warn("could not read saved data", e); }
   return {v:SCHEMA, params:{...DEFAULT_PARAMS}, weights:{...DEFAULT_WEIGHTS}, ui:{hiddenModes:[]},
+          tombstones:{}, settingsAt:0,
           places:DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p))),
           candidates:SEED.map(s=>JSON.parse(JSON.stringify(s)))};
 }
@@ -774,8 +817,8 @@ function renderForm(){
   $("#form").innerHTML = html;
 
   $("#form").querySelectorAll("input[data-k],select[data-k],textarea[data-k]").forEach(el=>{
-    el.addEventListener("input", ()=>{ c[el.dataset.k]=el.value; save(); renderList(); refreshBox(); });
-    el.addEventListener("change",()=>{ c[el.dataset.k]=el.value; save(); render(); });
+    el.addEventListener("input", ()=>{ c[el.dataset.k]=el.value; touch(c); save(); renderList(); refreshBox(); });
+    el.addEventListener("change",()=>{ c[el.dataset.k]=el.value; touch(c); save(); render(); });
   });
   $("#form").querySelectorAll("input[data-pl]").forEach(el=>{
     const upd = () => {
@@ -783,17 +826,18 @@ function renderForm(){
       const n = el.value==="" ? null : Number(el.value);
       if(n===null) delete c.travel[el.dataset.pl][el.dataset.mo];
       else c.travel[el.dataset.pl][el.dataset.mo] = n;
-      save();
+      touch(c); save();
     };
     el.addEventListener("input", ()=>{ upd(); renderList(); refreshBox(); });
     el.addEventListener("change",()=>{ upd(); render(); });
   });
   $("#form").querySelectorAll(".seg,.rate").forEach(box=>{
     box.querySelectorAll("button").forEach(b=>{
-      b.onclick = () => { c[box.dataset.k] = b.dataset.v; save(); render(); };
+      b.onclick = () => { c[box.dataset.k] = b.dataset.v; touch(c); save(); render(); };
     });
   });
   $("#bDel").onclick = () => { if(!confirm("Delete this candidate?")) return;
+    tombstone(c.id);                       // so the delete survives a merge
     S.candidates = S.candidates.filter(x=>x.id!==c.id);
     selId = S.candidates[0]?.id ?? null; save(); render(); };
   const bc = $("#bCalc"); if(bc) bc.onclick = () => calcTravel(c);
@@ -885,7 +929,7 @@ function dialog(title, bodyHtml, buttons){
   $("#dlg").showModal();
 }
 $("#bNew").onclick = () => { const c = {id:uid(), added:Date.now(), photos:[], travel:{}};
-  S.candidates.unshift(c); selId = c.id; save(); render();
+  touch(c); S.candidates.unshift(c); selId = c.id; save(); render();
   setTimeout(()=>$("#form").querySelector('input[data-k="address"]')?.focus(), 30); };
 
 /* ---------------------------------------------------------- places editor */
@@ -899,7 +943,7 @@ $("#bPlaces").onclick = () => {
   const open = () => {
     dialog("Places you travel to", body(),
       [{label:"Reset to defaults", act(){ S.places = DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
-          save(); render(); }},
+          touchSettings(); save(); render(); }},
        {label:"Done", primary:true, act(){ save(); render(); }}]);
     wirePlaces(open);
   };
@@ -938,27 +982,29 @@ function wirePlaces(reopen){
     const p = S.places[+pe.dataset.i];
     pe.querySelectorAll(':scope > .r > [data-f]').forEach(el=>{
       el.addEventListener("change", ()=>{
-        p[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value; save(); });
+        p[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value;
+        touchSettings(); save(); });
     });
     pe.querySelectorAll('[data-m]').forEach(mr=>{
       const m = p.modes[+mr.dataset.m];
       mr.querySelectorAll('[data-f]').forEach(el=>{
         el.addEventListener("change", ()=>{
-          m[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value; save(); reopen(); });
+          m[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value;
+          touchSettings(); save(); reopen(); });
       });
       mr.querySelector('[data-delm]').onclick = () => {
-        p.modes.splice(+mr.dataset.m,1); save(); reopen(); };
+        p.modes.splice(+mr.dataset.m,1); touchSettings(); save(); reopen(); };
     });
     pe.querySelector('[data-del]').onclick = () => {
-      S.places.splice(+pe.dataset.i,1); save(); reopen(); };
+      S.places.splice(+pe.dataset.i,1); touchSettings(); save(); reopen(); };
     pe.querySelector('[data-addm]').onclick = () => {
-      p.modes.push({mode:"WALKING",share:0.3,full:15,zero:35}); save(); reopen(); };
+      p.modes.push({mode:"WALKING",share:0.3,full:15,zero:35}); touchSettings(); save(); reopen(); };
   });
   $("#bAddPlace").onclick = () => {
     S.places.push({id:uid(), name:"New place", address:"", weight:2,
       modes:[{mode:"BICYCLING",share:0.7,full:12,zero:30},
              {mode:"TRANSIT",share:0.3,full:18,zero:40}]});
-    save(); reopen(); };
+    touchSettings(); save(); reopen(); };
 }
 
 /* ---------------------------------------------------------- weights */
@@ -991,20 +1037,22 @@ $("#bWeights").onclick = () => {
     </div>
     <table class="wt">${rows}${placeRows}</table>`,
     [{label:"Reset", act(){ S.params={...DEFAULT_PARAMS}; S.weights={...DEFAULT_WEIGHTS};
-        save(); render(); }},
+        touchSettings(); save(); render(); }},
      {label:"Save", primary:true, act(){
         $("#dlgB").querySelectorAll("[data-p]").forEach(i=>{ const k=i.dataset.p;
           S.params[k] = ["moveInBy","city","region"].includes(k) ? i.value
             : ["highThr","midThr","minData","overPct"].includes(k) ? (Number(i.value)||0)/100
             : Number(i.value)||0; });
         $("#dlgB").querySelectorAll("[data-w]").forEach(i=>{ S.weights[i.dataset.w]=Number(i.value)||0; });
-        save(); render(); }}]);
+        touchSettings(); save(); render(); }}]);
 };
 
 /* ---------------------------------------------------------- export/import */
 $("#bExport").onclick = () => {
   const json = JSON.stringify({exported:new Date().toISOString(), v:SCHEMA,
-    params:S.params, weights:S.weights, places:S.places, candidates:S.candidates}, null, 2);
+    params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
+    tombstones:S.tombstones||{}, settingsAt:S.settingsAt||0,
+    candidates:S.candidates}, null, 2);
   dialog("Export", `<div class="note">Hand this JSON to Claude and it rebuilds the spreadsheet.
     Use it to move your data between this phone and your desktop — they do not share storage.</div>
     <textarea class="mono" id="expT" readonly>${esc(json)}</textarea>`,
@@ -1020,13 +1068,15 @@ $("#bImport").onclick = () => dialog("Import",
 function doImport(replace){
   try{
     const d = JSON.parse($("#impT").value);
-    const inc = (d.candidates||[]).map(c=>Object.assign({id:uid(),added:Date.now(),photos:[],travel:{}},c));
+    const inc = (d.candidates||[]).map(c=>Object.assign(
+      {id:uid(),added:Date.now(),photos:[],travel:{}}, c, {updatedAt:Date.now()}));
     if(replace){ S.candidates = inc;
       if(d.params) S.params = Object.assign({},DEFAULT_PARAMS,d.params);
       if(d.weights) S.weights = Object.assign({},DEFAULT_WEIGHTS,d.weights);
       if(d.places) S.places = d.places;
     } else { const seen = new Set(S.candidates.map(c=>c.link).filter(Boolean));
       S.candidates = S.candidates.concat(inc.filter(c=>!c.link || !seen.has(c.link))); }
+    touchSettings();
     selId = S.candidates[0]?.id ?? null; save(); render();
   }catch(e){ alert("Not valid JSON:\n\n"+e.message); }
 }
@@ -1171,14 +1221,15 @@ async function calcTravel(c){
       say("geocoding…"); const city = (S.params.city||"").trim();
       const needsCity = city && !new RegExp(city.slice(0,4),"i").test(c.address);
       const g = await geocode(c.address + (needsCity ? ", "+city : ""));
-      c.lat = g.lat; c.lon = g.lng; save();
+      c.lat = g.lat; c.lon = g.lng; touch(c); save();
     }
     c.travel = c.travel || {};
     const fails = [];
     for(const p of S.places){
       if(!p.lat || !p.lon){
         if(!p.address){ fails.push(p.name+": no address"); continue; }
-        const g = await geocode(p.address); p.lat = g.lat; p.lon = g.lng; save();
+        const g = await geocode(p.address); p.lat = g.lat; p.lon = g.lng;
+        touchSettings(); save();
       }
       c.travel[p.id] = c.travel[p.id] || {};
       for(const m of p.modes){
@@ -1186,11 +1237,11 @@ async function calcTravel(c){
         try{
           c.travel[p.id][m.mode] = await minutesBetween(
             {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode, p);
-          save();
+          touch(c); save();
         }catch(e){ fails.push(`${p.name} by ${MODES[m.mode]}: ${e.message}`); }
       }
     }
-    save();
+    touch(c); save();
     MAP.routeSig = null; MAP.fitted = false;
     if(MAP.ready) await syncPins();
     render();
@@ -1292,15 +1343,16 @@ const EXTRACTOR = `(() => {
 })()`;
 
 /* ================================================== Firebase sync
-   One document per signed-in user: users/{uid}. Security rules mean nobody
-   else can read or write it, which is what makes a public page safe to host.
-   Conflict handling is last-write-wins on a timestamp — deliberately simple.
-   Edit the same flat on two devices while offline and the later save wins. */
-/* gstatic keeps every published SDK version, but if one 404s the whole sync
-   dies silently — so try a couple in order and report which failed. */
+   users/{uid} holds one document. Merging is per candidate, not per document:
+   each candidate carries its own updatedAt, deletions leave tombstones, and
+   settings move as one block with their own stamp. That way editing flat A on
+   the laptop and flat B on the phone keeps both, instead of whichever saved
+   last erasing the other.
+
+   Nothing is ever pushed before the first remote read has been merged in.  */
 const FB_VERS = ["10.14.1", "11.0.2", "10.12.5"];
 const FB = {app:null, auth:null, db:null, uid:null, unsub:null, ready:false};
-let syncTimer = null, applyingRemote = false;
+let syncTimer = null, applyingRemote = false, syncReady = false, pendingPush = false;
 
 function fbConf(){
   const c = Object.assign({}, CFG.firebase||{});
@@ -1313,6 +1365,99 @@ function setSync(state, text){
   el.className = "sync" + (state ? " "+state : "");
   el.textContent = text;
 }
+
+/* --- stamping -------------------------------------------------------------
+   saveLocal() persists without claiming anything changed. save() means "the
+   user changed something" and schedules a push. Derived work such as drawing
+   routes must not masquerade as an edit, or simply opening the page on a
+   second device would look newer than real edits made on the first.        */
+function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function touch(c){ if(c && !applyingRemote) c.updatedAt = Date.now(); }
+function touchSettings(){ if(!applyingRemote) S.settingsAt = Date.now(); }
+function tombstone(id){
+  S.tombstones = S.tombstones || {};
+  S.tombstones[id] = Date.now();
+}
+
+/* --- merge ---------------------------------------------------------------- */
+function mergeRemote(remote){
+  applyingRemote = true;
+  const rDocT = Number(remote.updatedAt || 0);
+
+  // candidates: union by id, newest wins
+  const byId = new Map();
+  for(const c of (S.candidates||[])) byId.set(c.id, c);
+  for(const rc of (remote.candidates||[])){
+    const local = byId.get(rc.id);
+    const rt = Number(rc.updatedAt || rDocT || 0);
+    const lt = Number(local?.updatedAt || 0);
+    if(!local || rt > lt) byId.set(rc.id, rc);
+  }
+
+  // tombstones: keep the latest deletion time per id, then apply
+  const tomb = {};
+  for(const src of [remote.tombstones||{}, S.tombstones||{}])
+    for(const [id, t] of Object.entries(src))
+      tomb[id] = Math.max(Number(t)||0, Number(tomb[id]||0));
+  for(const [id, t] of Object.entries(tomb)){
+    const c = byId.get(id);
+    // a delete only wins over an edit that happened before it
+    if(c && Number(t) >= Number(c.updatedAt || 0)) byId.delete(id);
+  }
+  // forget tombstones older than 60 days so the document does not grow forever
+  const cutoff = Date.now() - 60*24*3600*1000;
+  for(const [id, t] of Object.entries(tomb)) if(Number(t) < cutoff) delete tomb[id];
+
+  S.candidates = [...byId.values()];
+  S.tombstones = tomb;
+
+  // settings travel as one block
+  if(Number(remote.settingsAt || 0) > Number(S.settingsAt || 0)){
+    if(remote.params)  S.params  = Object.assign({}, DEFAULT_PARAMS,  remote.params);
+    if(remote.weights) S.weights = Object.assign({}, DEFAULT_WEIGHTS, remote.weights);
+    if(remote.places)  S.places  = remote.places;
+    if(remote.ui)      S.ui      = remote.ui;
+    S.settingsAt = Number(remote.settingsAt);
+  }
+
+  if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
+  saveLocal();
+  applyingRemote = false;
+}
+
+function stateHash(){
+  return JSON.stringify([S.candidates.map(c=>[c.id, c.updatedAt||0]),
+                         S.settingsAt||0, Object.entries(S.tombstones||{})]);
+}
+let lastPushedHash = null;
+
+async function pushRemote(){
+  if(!FB.ready || !FB.uid || !syncReady) return;
+  const {fs} = FB.mods;
+  const payload = {
+    params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
+    candidates:S.candidates, tombstones:S.tombstones||{},
+    settingsAt: S.settingsAt || 0,
+    updatedAt: Date.now(), schema: SCHEMA
+  };
+  await fs.setDoc(fs.doc(FB.db, "users", FB.uid), payload);
+  lastPushedHash = stateHash();
+}
+function queueSync(){
+  if(!FB.ready || !FB.uid || applyingRemote) return;
+  if(!syncReady){ pendingPush = true; return; }   // wait for the first read
+  setSync("busy","saving…");
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(async ()=>{
+    try{ await pushRemote(); setSync("ok","synced"); }
+    catch(e){ console.error(e); setSync("err","save failed"); }
+  }, 1200);
+}
+/* A user edit stamps nothing by itself — call touch(candidate) or
+   touchSettings() at the edit site — but it does schedule a push. */
+const _save = save;
+save = function(){ _save(); queueSync(); };
+
 async function initFirebase(){
   const conf = fbConf();
   if(!conf){ setSync("", "local only"); return; }
@@ -1342,71 +1487,44 @@ async function initFirebase(){
     console.error(e); setSync("err","sync unavailable");
   }
 }
+
 async function onAuth(u){
   const {fs} = FB.mods;
   if(FB.unsub){ FB.unsub(); FB.unsub = null; }
+  syncReady = false; pendingPush = false;
   if(!u){ FB.uid = null; FB.email = null; setSync("","not signed in");
     $("#bAcct").textContent = "Sign in"; initMap(); return; }
   FB.uid = u.uid; FB.email = u.email || "";
-  initMap();                                   // sign-in unlocks the map
+  initMap();
   $("#bAcct").textContent = (u.displayName||u.email||"Account").split(" ")[0];
-  setSync("busy","syncing…");
+  setSync("busy","reading…");
   const ref = fs.doc(FB.db, "users", u.uid);
   try{
+    // 1. read remote and merge it into what is here, before anything goes up
     const snap = await fs.getDoc(ref);
-    if(!snap.exists()){
-      await pushRemote();                       // first sign-in: seed from this browser
-      setSync("ok","synced");
-    }else{
-      const remote = snap.data();
-      const localT  = Number(S.updatedAt||0), remoteT = Number(remote.updatedAt||0);
-      if(remoteT > localT) adoptRemote(remote);
-      else if(localT > remoteT) await pushRemote();
-      setSync("ok","synced");
-    }
+    if(snap.exists() && snap.data()) mergeRemote(snap.data());
+    syncReady = true;
+    render();
+
+    // 2. now it is safe to write the merged result back
+    setSync("busy","saving…");
+    await pushRemote();
+    setSync("ok","synced");
+    pendingPush = false;
+
+    // 3. stay live
     FB.unsub = fs.onSnapshot(ref, s => {
-      if(!s.exists() || !s.data()) return;
-      const d = s.data();
-      if(Number(d.updatedAt||0) > Number(S.updatedAt||0)) adoptRemote(d);
+      if(!s.exists() || !s.data() || applyingRemote) return;
+      const before = stateHash();
+      mergeRemote(s.data());
+      if(stateHash() !== before){ render(); setSync("ok","synced"); }
     }, err => { console.error(err); setSync("err","sync error"); });
   }catch(e){
     console.error(e);
+    syncReady = false;
     setSync("err", /permission/i.test(e.message) ? "rules deny access" : "sync error");
   }
 }
-function adoptRemote(d){
-  applyingRemote = true;
-  if(d.params)  S.params  = Object.assign({}, DEFAULT_PARAMS,  d.params);
-  if(d.weights) S.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights);
-  if(d.places)  S.places  = d.places;
-  if(d.ui)      S.ui      = d.ui;
-  if(d.candidates) S.candidates = d.candidates;
-  S.updatedAt = d.updatedAt || Date.now();
-  if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
-  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
-  applyingRemote = false;
-  render(); setSync("ok","synced");
-}
-async function pushRemote(){
-  if(!FB.ready || !FB.uid) return;
-  const {fs} = FB.mods;
-  const payload = {params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
-                   candidates:S.candidates, updatedAt: S.updatedAt || Date.now(),
-                   schema: SCHEMA};
-  await fs.setDoc(fs.doc(FB.db, "users", FB.uid), payload);
-}
-function queueSync(){
-  if(!FB.ready || !FB.uid || applyingRemote) return;
-  setSync("busy","saving…");
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(async ()=>{
-    try{ await pushRemote(); setSync("ok","synced"); }
-    catch(e){ console.error(e); setSync("err","save failed"); }
-  }, 1200);
-}
-/* every local save also stamps a time and schedules a push */
-const _save = save;
-save = function(){ if(!applyingRemote) S.updatedAt = Date.now(); _save(); queueSync(); };
 
 $("#bAcct").onclick = async () => {
   if(!fbConf()) return setupDialog();
@@ -1647,7 +1765,7 @@ async function focusCandidate(c, animate = true){
           if(leg?.duration?.value){
             const mins = Math.round(leg.duration.value/60);
             c.travel = c.travel||{}; c.travel[p.id] = c.travel[p.id]||{};
-            c.travel[p.id][m.mode] = mins;
+            if(c.travel[p.id][m.mode] !== mins){ c.travel[p.id][m.mode] = mins; touch(c); }
             const path = res.routes[0].overview_path || [];
             const mid = path[Math.floor(path.length/2)];
             if(mid) MAP.labels.push(new google.maps.Marker({
@@ -1661,7 +1779,10 @@ async function focusCandidate(c, animate = true){
         }catch(e){ console.warn("no route", p.name, m.mode, e?.code || e); }
       }
     }
-    save();
+    // Drawing routes is derived work. Persist it, but only schedule a push if a
+    // value really changed — otherwise merely opening the page on a second
+    // device would look like an edit and could win a merge it should lose.
+    if(c.updatedAt && Date.now() - c.updatedAt < 5000) save(); else saveLocal();
     document.querySelectorAll("input[data-pl]").forEach(el=>{
       const v = c.travel?.[el.dataset.pl]?.[el.dataset.mo];
       if(v!=null) el.value = v;
@@ -1690,7 +1811,7 @@ function toggleMode(m){
   hidden.has(m) ? hidden.delete(m) : hidden.add(m);
   if(hidden.size >= availableModes().length) hidden.delete(m);   // keep one on
   S.ui.hiddenModes = [...hidden];
-  save();
+  touchSettings(); save();
   MAP.routeSig = null;
   const c = S.candidates.find(x=>x.id===selId);
   if(c && MAP.ready) focusCandidate(c, false);
@@ -1719,11 +1840,173 @@ function renderLegend(){
   });
   const sel = $("#departSel");
   if(sel) sel.onchange = () => {
-    S.params.departHour = Number(sel.value); save();
+    S.params.departHour = Number(sel.value); touchSettings(); save();
     MAP.routeSig = null;
     const cur = S.candidates.find(x=>x.id===selId);
     if(cur) focusCandidate(cur);
   };
+}
+
+/* ================================================== scraping
+   The API holds the ScrapingBee and Anthropic keys; this page never sees them.
+   Jobs run server-side and are polled, so you can keep browsing and editing
+   other candidates while one is in flight.                                  */
+const API = (CFG.apiBase || "").replace(/\/$/, "");
+const SB = {jobs:new Map(), timer:null};
+
+async function idToken(){
+  if(!FB.ready || !FB.uid) return null;
+  try{ return await FB.auth.currentUser.getIdToken(); }catch(e){ return null; }
+}
+async function api(path, opts = {}){
+  const tok = await idToken();
+  if(!tok) throw new Error("sign in first — the scraper is behind your Google account");
+  const r = await fetch(API + path, Object.assign({}, opts, {
+    headers: Object.assign({"Content-Type":"application/json",
+                            "Authorization":"Bearer " + tok}, opts.headers||{})
+  }));
+  let body = null;
+  try{ body = await r.json(); }catch(e){}
+  if(!r.ok) throw new Error(body?.detail || `${r.status} ${r.statusText}`);
+  return body;
+}
+
+$("#bScrape").onclick = async () => {
+  const url = $("#sbUrl").value.trim();
+  if(!url) return;
+  if(!API){ alert("No scraper API configured. Set apiBase in config.js."); return; }
+  const btn = $("#bScrape"); btn.disabled = true; btn.textContent = "Starting…";
+  try{
+    // Create the candidate up front so the row exists while the job runs.
+    const c = {id:uid(), added:Date.now(), photos:[], travel:{}, link:url,
+               address:"", notes:"Scraping…"};
+    touch(c); S.candidates.unshift(c); selId = c.id; save(); render();
+
+    const res = await api("/api/scrape", {method:"POST",
+      body: JSON.stringify({url, candidate_id: c.id})});
+    SB.jobs.set(res.job_id, {id:res.job_id, url, cand:c.id, stages:res.stages,
+                             stage:"queued", stage_label:"Queued", progress:0});
+    $("#sbUrl").value = "";
+    renderJobs(); startPolling();
+  }catch(e){
+    alert("Could not start: " + e.message);
+  }finally{ btn.disabled = false; btn.textContent = "Scrape"; }
+};
+
+function startPolling(){
+  if(SB.timer) return;
+  SB.timer = setInterval(pollJobs, 1500);
+}
+async function pollJobs(){
+  const live = [...SB.jobs.values()].filter(j=>j.stage!=="done" && j.stage!=="error");
+  if(!live.length){ clearInterval(SB.timer); SB.timer = null; return; }
+  for(const j of live){
+    try{
+      const s = await api("/api/scrape/" + j.id);
+      Object.assign(j, s);
+      if(s.stage === "done") applyScrape(j, s);
+      if(s.stage === "error") j.errorShown = true;
+    }catch(e){
+      j.stage = "error"; j.error = e.message;
+    }
+  }
+  renderJobs();
+}
+
+function renderJobs(){
+  const host = $("#sbJobs"); if(!host) return;
+  const list = [...SB.jobs.values()].slice(-4);
+  host.innerHTML = list.map(j=>{
+    const err = j.stage === "error";
+    const steps = (j.stages||[]).filter(s=>s.key!=="queued").map(s=>{
+      const cur = s.key === j.stage;
+      const done = (j.progress||0) > s.at;
+      return `<span class="${cur?"on":done?"did":""}">${esc(s.label)}</span>`;
+    }).join("");
+    return `<div class="sbjob">
+      <div class="top">
+        <span class="st">${err ? "Failed" : esc(j.stage_label||"…")}</span>
+        <span class="u">${esc(j.url)}</span>
+        <span class="pct">${err ? "" : (j.progress||0)+"%"}</span>
+      </div>
+      <div class="sbbar ${err?"err":""}"><i style="width:${err?100:(j.progress||0)}%"></i></div>
+      ${err ? `<div class="tiny" style="margin-top:6px;color:var(--bad)">${esc(j.error||"")}</div>`
+            : `<div class="sbsteps">${steps}</div>`}
+    </div>`;
+  }).join("");
+}
+
+/* Write the reconciled answer onto the candidate, then say what is missing. */
+function applyScrape(job, s){
+  const c = S.candidates.find(x=>x.id===job.cand);
+  if(!c){ return; }
+  const res = s.result || {};
+  const filled = [], skipped = [];
+  for(const [k, v] of Object.entries(res)){
+    if(v.value === null || v.value === undefined){ skipped.push(k); continue; }
+    c[k] = typeof v.value === "number" ? String(v.value) : v.value;
+    filled.push(k);
+  }
+  const L = s.listing || {};
+  if(L.images?.length) c.photos = L.images;
+  if(L.lat && !c.lat){ c.lat = L.lat; c.lon = L.lon; }
+  if(!c.address && L.title) c.address = L.title;
+  const bits = [`Scraped ${new Date().toLocaleString()} — ${filled.length} fields filled, `
+                + `${skipped.length} left blank.`];
+  if(s.usage) bits.push(`Model tokens: ${s.usage.input_tokens} in / ${s.usage.output_tokens} out.`);
+  c.notes = (c.notes === "Scraping…" ? "" : (c.notes ? c.notes + "\n\n" : "")) + bits.join(" ");
+  touch(c); save();
+  MAP.routeSig = null; MAP.fitted = false;
+  if(MAP.ready) syncPins();
+  render();
+  showScrapeReport(c, s, filled, skipped);
+}
+
+function showScrapeReport(c, s, filled, skipped){
+  const label = k => (GROUPS.flatMap(g=>g.fields).find(f=>f.k===k)?.l) || k;
+  const res = s.result || {};
+  const confChip = v => {
+    const n = v.confidence;
+    if(n === null || n === undefined) return "";
+    const cls = n >= 0.7 ? "hi" : n >= 0.45 ? "mid" : "lo";
+    return `<span class="conf ${cls}">${Math.round(n*100)}%</span>`;
+  };
+  const conflicts = [];
+  for(const k of Object.keys(res)){
+    const t = s.text_result?.[k]?.value, p = s.photo_result?.[k]?.value;
+    if(t != null && p != null && String(t) !== String(p))
+      conflicts.push(`${label(k)}: text said <b>${esc(String(t))}</b>, photos said
+        <b>${esc(String(p))}</b> → kept <b>${esc(String(res[k].value))}</b>`);
+  }
+  const low = (s.low_confidence||[]).filter(k=>res[k]?.value != null);
+
+  let html = `<div class="note">Filled <b>${filled.length}</b> of
+    ${filled.length + skipped.length} fields for <b>${esc(c.address||"this listing")}</b>.
+    Everything below is the model's reading of the advert, not fact — the blanks are
+    deliberate, it was told to leave a field empty rather than guess.</div>`;
+
+  if(skipped.length) html += `<h4 style="margin:12px 0 5px;font-size:12.5px">
+      Could not be determined (${skipped.length}) — check these at the viewing</h4>
+    <div class="tiny" style="line-height:1.9">${skipped.map(k=>
+      `<span style="background:#f1f4f7;border-radius:6px;padding:2px 8px;margin-right:5px;
+        display:inline-block">${esc(label(k))}</span>`).join("")}</div>`;
+
+  if(low.length) html += `<h4 style="margin:14px 0 5px;font-size:12.5px">
+      Filled but uncertain (${low.length}) — worth verifying</h4>
+    <table class="fieldtable">${low.map(k=>`<tr><td class="k">${esc(label(k))}</td>
+      <td class="v">${esc(String(res[k].value))}${confChip(res[k])}
+      ${res[k].evidence?`<div class="tiny" style="font-weight:400;margin-top:2px">
+        ${esc(res[k].evidence)}</div>`:""}</td></tr>`).join("")}</table>`;
+
+  if(conflicts.length) html += `<h4 style="margin:14px 0 5px;font-size:12.5px">
+      Text disagreed with the photographs (${conflicts.length})</h4>
+    <div class="tiny" style="line-height:1.8">${conflicts.map(x=>"· "+x).join("<br>")}</div>`;
+
+  html += `<h4 style="margin:14px 0 5px;font-size:12.5px">Filled (${filled.length})</h4>
+    <table class="fieldtable">${filled.map(k=>`<tr><td class="k">${esc(label(k))}</td>
+      <td class="v">${esc(String(res[k].value))}${confChip(res[k])}</td></tr>`).join("")}</table>`;
+
+  dialog("Scrape finished", html, [{label:"Close", primary:true}]);
 }
 
 /* ================================================================ boot */

@@ -1,0 +1,16 @@
+services:
+  scraper:
+    build: .
+    container_name: apartment-hunter-api
+    restart: unless-stopped
+    env_file: .env
+    # Bound to loopback: nginx on the host is the only way in.
+    ports:
+      - "127.0.0.1:8080:8080"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    deploy:
+      resources:
+        limits:
+          memory: 1g

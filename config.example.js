@@ -35,6 +35,11 @@ window.APP_CONFIG = {
   // either way. Daily quota caps in Cloud Console are the real limit.
   allowedEmails: ["you@example.com"],
 
+  // Base URL of the scraping API (the FastAPI container behind your nginx).
+  // Leave empty to hide the scrape box. No keys here — ScrapingBee and
+  // Anthropic credentials live only in the server's .env.
+  apiBase: "https://your-server.example/apartment-hunter",
+
   // Appended to candidate addresses that do not name a city, when geocoding.
   defaultCity: "Kraków",
   defaultRegion: "pl"
