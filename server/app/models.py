@@ -15,8 +15,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import (Boolean, DateTime, Float, ForeignKey, Index, Integer,
-                        Numeric, String, Text, UniqueConstraint, func)
+from sqlalchemy import (BigInteger, Boolean, DateTime, Float, ForeignKey, Index,
+                        Integer, Numeric, String, Text, UniqueConstraint, func)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -181,5 +181,6 @@ class Candidate(Base, TimestampMixin):
 
     status_override: Mapped[str | None] = mapped_column(String(32))
     archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    # Client wall-clock stamp, used for last-write-wins on a single field.
-    client_updated_at: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Client wall-clock stamp in epoch milliseconds, used for last-write-wins.
+    # BigInteger, not Integer: Date.now() is ~1.79e12 and overflows int32.
+    client_updated_at: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)

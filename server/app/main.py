@@ -20,6 +20,7 @@ from collections import defaultdict
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, HttpUrl
 
 from .analyze import client_for, pass_photos, pass_reconcile, pass_text, tidy, usage_sum
@@ -41,6 +42,22 @@ app.state.cfg = Config()
 
 app.include_router(schema_router)
 app.include_router(data_router)
+
+
+# Registered before CORSMiddleware so it sits *inside* it. Starlette's own
+# ServerErrorMiddleware is outermost, so an unhandled exception returns a bare
+# 500 with no Access-Control-Allow-Origin — the browser then hides the real
+# error behind a misleading CORS message. Catching here keeps the response
+# inside the CORS layer, so the actual reason reaches the console.
+@app.middleware("http")
+async def surface_errors(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:  # noqa: BLE001
+        log.exception("unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500,
+                            content={"detail": f"{type(e).__name__}: {str(e)[:300]}"})
+
 
 app.add_middleware(
     CORSMiddleware,
