@@ -27,8 +27,14 @@ server {
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
-    http2 on;
     server_name HOSTNAME;
+
+    # HTTP/2 is optional here — this is a small JSON API, not a page load, so it
+    # gains nothing measurable. If you want it anyway, the directive differs by
+    # version and using the wrong one is a hard config error:
+    #   nginx  < 1.25.1 :  listen 443 ssl http2;   (on the listen line above)
+    #   nginx >= 1.25.1 :  http2 on;               (as its own directive)
+    # Check with: nginx -v
 
     ssl_certificate     /etc/letsencrypt/live/HOSTNAME/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/HOSTNAME/privkey.pem;
