@@ -1,19 +1,114 @@
-# Service-account / admin credentials — must never be committed.
-# These bypass Firestore security rules entirely.
+# ---------------------------------------------------------------- secrets
+# These are the ones that actually matter. The service-account JSON bypasses
+# every rule in firestore.rules; server/.env holds the ScrapingBee and
+# Anthropic keys, which bill by usage and have no origin restriction.
+server/.env
+server/.env.*
+!server/.env.example
+config.js
 *serviceAccount*.json
 *-firebase-adminsdk-*.json
 apartment-hunter-*.json
-firebase-debug.log
 .firebase/
+firebase-debug.log
+firestore-debug.log
 
-# Real config with keys in it. Commit config.example.js instead and enter the
-# values in the page once per browser — they land in local storage.
-config.js
+# ---------------------------------------------------------------- python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Local data dumps
-*.local.json
+# virtualenvs
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# tooling caches
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+
+# ---------------------------------------------------------------- node
 node_modules/
-.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
 
-# Server secrets — ScrapingBee and Anthropic keys live here
-server/.env
+# ---------------------------------------------------------------- docker
+# Compose reads .env from the directory it runs in; never commit a real one.
+.env
+docker-compose.override.yml
+docker-compose.*.local.yml
+
+# ---------------------------------------------------------------- data
+# Local dumps and anything exported from the app — these contain real
+# addresses, budgets and shortlists.
+*.local.json
+apartment-hunter.json
+apartment-hunter.csv
+flats.json
+flats.csv
+*.dump
+*.sql.gz
+pgdata/
+
+# ---------------------------------------------------------------- editors
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# ---------------------------------------------------------------- os
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------- misc
+*.log
+tmp/
+temp/
+.cache/

@@ -191,8 +191,17 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   background:var(--yellow);transition:.14s ease}
 .sb-row input:focus{outline:none;border-color:#8fb4e2;background:#fff;
   box-shadow:0 0 0 3px rgba(50,114,196,.13)}
-.sbjob{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
-  background:#fbfcfd}
+.sbjob{margin:8px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;
+  background:#fff;cursor:pointer;transition:.14s ease}
+.sbjob:hover{border-color:#c9d3de;box-shadow:0 3px 10px rgba(20,27,37,.06)}
+.sbjob.ok{background:#f7fcf6;border-color:#cfe6c9}
+.sbjob.bad{background:#fdf6f4;border-color:#f0cfc4}
+.dotstate{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.dotstate.run{background:#3272c4;animation:pulse 1.2s ease-in-out infinite}
+.dotstate.ok{background:#2f855a}
+.dotstate.bad{background:var(--bad)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.sbjob .st{font-size:11px;color:var(--muted);margin-top:4px;font-weight:600}
 .sbjob .top{display:flex;align-items:center;gap:9px;font-size:12px}
 .sbjob .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   color:var(--muted)}
@@ -216,6 +225,33 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
 .conf.mid{background:#fff4d9;color:#7a5a00}
 .conf.lo{background:#fdeae3;color:#8a2b00}
 @media(max-width:900px){.sb-row{flex-wrap:wrap}.sb-row input{width:100%}}
+
+/* admin panel */
+.tabs{display:flex;gap:4px;padding:3px;background:#f1f4f7;border-radius:10px;margin-bottom:14px}
+.tab{flex:1;border:0;background:transparent;padding:7px 10px;border-radius:8px;font-size:12.5px;
+  font-weight:600;color:var(--muted);transition:.14s ease}
+.tab:hover{color:var(--ink)}
+.tab.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(20,27,37,.1)}
+.adcat{border:1px solid var(--line);border-radius:12px;margin-bottom:11px;overflow:hidden;
+  background:#fff}
+.adcat-h{display:flex;align-items:center;gap:9px;padding:10px 13px;
+  background:linear-gradient(180deg,#fbfcfe,#f5f7fa);border-bottom:1px solid var(--line)}
+.adcat-h b{font-size:13px;font-weight:650}
+.swatch{width:11px;height:11px;border-radius:4px;flex:0 0 auto;
+  box-shadow:0 0 0 3px rgba(0,0,0,.05)}
+.adcat-b{padding:2px 0}
+.adrow{display:flex;align-items:center;gap:9px;padding:7px 13px;font-size:12.5px;
+  border-bottom:1px solid #f4f6f9;transition:.12s ease}
+.adrow:last-of-type{border-bottom:0}
+.adrow:hover{background:#fafbfd}
+.adlabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:550;display:flex;gap:6px;align-items:baseline}
+.mono{font-family:var(--font-mono,ui-monospace,Menlo,Consolas,monospace);font-size:10.5px;
+  background:#f1f4f7;border-radius:5px;padding:1px 6px;color:#5d6976}
+.wcell{width:34px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;
+  color:var(--ink)}
+.f label input[type=checkbox]{vertical-align:-1px}
+dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5px}
 @media(max-width:900px){
   .wrap{flex-direction:column;padding:9px;gap:9px}
   .col-list{position:static;flex:1;width:100%}
@@ -260,11 +296,9 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   <div class="spacer"></div>
   <button class="btn primary" id="bNew">+ New</button>
   <button class="btn" id="bFetch">Add from link</button>
-  <button class="btn" id="bPlaces">Places</button>
-  <button class="btn" id="bWeights">Weights</button>
+  <button class="btn" id="bAdmin"><i class="ti"></i>Admin</button>
   <button class="btn" id="bPrint">Print</button>
   <button class="btn" id="bExport">Export</button>
-  <button class="btn" id="bImport">Import</button>
   <span id="syncPill" class="sync" title="Sync status">local only</span>
   <button class="btn" id="bKeys" title="Firebase and Maps keys">Keys</button>
   <button class="btn" id="bAcct">Sign in</button>
@@ -282,12 +316,21 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
              placeholder="Paste an OLX or Otodom listing URL…">
       <button class="btn primary" id="bScrape">Scrape</button>
     </div>
-    <div id="sbJobs"></div>
   </div>
 </div>
 
 <div class="wrap">
   <div class="col-list">
+    <div class="card" id="sbPanel" style="display:none;margin-bottom:12px">
+      <div class="listhead">
+        <strong style="font-size:13px">Scrapes</strong>
+        <span class="tiny" id="sbCount"></span>
+        <div style="flex:1"></div>
+        <button class="btn sm" id="sbClear">Clear finished</button>
+      </div>
+      <div id="sbJobs"></div>
+    </div>
+
     <div class="card">
       <div class="listhead">
         <strong style="font-size:13px">Candidates</strong>
@@ -318,166 +361,69 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
 <script>
 "use strict";
 const CFG = window.APP_CONFIG || {};
-/* ================================================================ config */
-const DEFAULT_PARAMS = {
-  budgetYear:42500, overPct:0.05,
-  grocFull:5, grocZero:15, transFull:5, transZero:12, parkFull:10, parkZero:25,
-  highThr:0.75, midThr:0.60, minData:0.35, moveInBy:"2026-09-01",
-  departHour:10,               // routes are timed to the next weekday at this hour
+/* ================================================================ config
+   The schema — categories, criteria, weights, thresholds, places — lives in
+   Postgres and arrives from GET /api/schema. Nothing below is a default in the
+   old sense; it is only what the page falls back to when it has never
+   successfully reached the server and has no cached copy.                   */
 
-  city:(window.APP_CONFIG&&window.APP_CONFIG.defaultCity)||"Kraków",
-  region:(window.APP_CONFIG&&window.APP_CONFIG.defaultRegion)||"pl"
-};
-const CHAINS = [["Lidl",5],["Auchan",4],["Netto",3],["Biedronka",2],
-                ["Lewiatan",1],["Other",0.5],["None nearby",0]];
-const WINDOWS = [["East",1],["East–North",1],["North",0.8],["North–West",0.6],
-                 ["South–East",0.8],["South",0.55],["West",0.4],["Other / unknown",0.3]];
 const MODES = {BICYCLING:"Bike", TRANSIT:"Transit", WALKING:"Walk", DRIVING:"Car"};
 
-/* Places you travel to. Weight = how much this destination matters overall;
-   each mode's share splits that weight, so bike counts for more than transit. */
-const DEFAULT_PLACES = [
-  {id:"work", name:"Work", address:"ul. Lublańska 34A, Kraków", weight:5,
-   modes:[{mode:"BICYCLING",share:0.7,full:10,zero:30},
-          {mode:"TRANSIT",  share:0.3,full:15,zero:40}]},
-  {id:"gym",  name:"Gym", address:"al. 29 Listopada 39F, 31-425 Kraków", weight:3,
-   modes:[{mode:"BICYCLING",share:0.7,full:12,zero:30},
-          {mode:"TRANSIT",  share:0.3,full:18,zero:40}]},
-  {id:"centre", name:"City centre", address:"Rynek Główny, Kraków", weight:2,
-   modes:[{mode:"BICYCLING",share:0.6,full:15,zero:40},
-          {mode:"TRANSIT",  share:0.4,full:20,zero:45}]}
-];
-
-const DEFAULT_WEIGHTS = {
-  yearly:8, chain:3, grocmin:2, transmin:2, quiet:3, parkmin:1, windows:2,
-  neighbors:1, bedroom:5, heating:5, modern:3, kitchen:3, desk:5, piano:5, sun:4,
-  bed:2, newwin:2, nomold:4, appliances:2, nogas:3, elevator:1, bike:1, contract:3,
-  play:1, furniture:1, bathtub:1, wardrobe:1, balcony:1
+const FALLBACK_SETTINGS = {
+  budgetYear:42500, overPct:0.05, highThr:0.75, midThr:0.60, minData:0.35,
+  moveInBy:"2026-09-01", departHour:10, city:"Kraków", region:"pl"
 };
-const CRIT = [
-  {k:"yearly",  n:"Yearly cost within budget",   kind:"budget"},
-  {k:"chain",   n:"Nearest grocery chain",       kind:"chain"},
-  {k:"grocmin", n:"Walk to grocery",             kind:"lin", full:"grocFull", zero:"grocZero"},
-  {k:"transmin",n:"Walk to transit stop",        kind:"lin", full:"transFull",zero:"transZero"},
-  {k:"quiet",   n:"Quiet surroundings",          kind:"r3"},
-  {k:"parkmin", n:"Walk to a park",              kind:"lin", full:"parkFull", zero:"parkZero"},
-  {k:"windows", n:"Windows facing east / north", kind:"windows"},
-  {k:"neighbors",n:"Calm neighbours",            kind:"r3"},
-  {k:"bedroom", n:"Separate bedroom",            kind:"yesno"},
-  {k:"heating", n:"Central (miejskie) heating",  kind:"yesno"},
-  {k:"modern",  n:"Modern building, feels new",  kind:"r3"},
-  {k:"kitchen", n:"Kitchen not too small",       kind:"r3"},
-  {k:"desk",    n:"Place for a 140×90 desk",     kind:"yesno"},
-  {k:"piano",   n:"Place for a 120×50 piano",    kind:"yesno"},
-  {k:"sun",     n:"Lots of sunlight",            kind:"r3"},
-  {k:"bed",     n:"Bed included",                kind:"yesno"},
-  {k:"newwin",  n:"New windows",                 kind:"yesno"},
-  {k:"nomold",  n:"No damp or mould",            kind:"yesno"},
-  {k:"appliances",n:"Appliances work",           kind:"r3"},
-  {k:"nogas",   n:"Electric only, no gas",       kind:"yesno"},
-  {k:"elevator",n:"Lift or low floor",           kind:"yesno"},
-  {k:"bike",    n:"Bike storage",                kind:"yesno"},
-  {k:"contract",n:"Standard contract",           kind:"contract"},
-  {k:"play",    n:"Play internet available",     kind:"yesno"},
-  {k:"furniture",n:"Furniture changes allowed",  kind:"r3"},
-  {k:"bathtub", n:"Bathtub",                     kind:"yesno"},
-  {k:"wardrobe",n:"Wardrobe",                    kind:"yesno"},
-  {k:"balcony", n:"Balcony",                     kind:"yesno"}
-];
 
-const GROUPS = [
-  {id:"track", title:"Tracking & status", color:"var(--navy)", fields:[
-    {k:"address", l:"Address / district", type:"text", wide:true},
-    {k:"link",    l:"Listing link",       type:"url",  wide:true},
-    {k:"availfrom",l:"Available from",    type:"date",
-     hint:"Hard requirement — later than the cut-off rejects the flat."},
-    {k:"messaged",l:"Messaged them?",     type:"yesno"},
-    {k:"msgdate", l:"Date messaged",      type:"date"},
-    {k:"presched",l:"Presentation scheduled?", type:"yesno"},
-    {k:"presdate",l:"Presentation date",  type:"datetime-local"},
-    {k:"override",l:"Manual override",    type:"select",
-     opts:["","Rejected","On hold","Applied","Signed"]},
-    {k:"notes",   l:"Notes & red flags",  type:"textarea", wide:true}
-  ]},
-  {id:"cost", title:"Costs & size", color:"var(--green)", fields:[
-    {k:"rent",   l:"Rent (najem) zł/mo",  type:"num"},
-    {k:"admin",  l:"Czynsz administracyjny zł/mo", type:"num"},
-    {k:"util",   l:"Media est. zł/mo",    type:"num"},
-    {k:"total",  l:"Total monthly zł",    type:"calc"},
-    {k:"area",   l:"Area m²",             type:"num", hint:"Not scored — used for zł/m² only."},
-    {k:"persqm", l:"zł per m² per month", type:"calc"},
-    {k:"provision",l:"Provision fee zł (one-off)", type:"num"},
-    {k:"kaucja", l:"Kaucja zł (refundable)", type:"num"},
-    {k:"yearly", l:"Yearly cost zł",      type:"calc"},
-    {k:"headroom",l:"Budget headroom zł", type:"calc"}
-  ]},
-  {id:"loc", title:"Neighbourhood", color:"var(--gold)", fields:[
-    {k:"chain",   l:"Nearest grocery chain", type:"select", opts:[""].concat(CHAINS.map(c=>c[0]))},
-    {k:"grocmin", l:"Walk to grocery (min)", type:"num"},
-    {k:"transmin",l:"Walk to transit (min)", type:"num"},
-    {k:"parkmin", l:"Walk to park (min)", type:"num"},
-    {k:"windows", l:"Windows facing", type:"select", opts:[""].concat(WINDOWS.map(w=>w[0]))},
-    {k:"quiet",   l:"Quiet area", type:"r3"},
-    {k:"neighbors",l:"Neighbours calm", type:"r3"}
-  ]},
-  {id:"apt", title:"Building & apartment", color:"var(--orange)", fields:[
-    {k:"bedroom", l:"Separate bedroom", type:"yesno"},
-    {k:"heating", l:"Central heating (miejskie)", type:"yesno"},
-    {k:"desk",    l:"Desk 140×90 fits", type:"yesno"},
-    {k:"piano",   l:"Piano 120×50 fits", type:"yesno"},
-    {k:"bed",     l:"Bed included", type:"yesno"},
-    {k:"newwin",  l:"New windows", type:"yesno"},
-    {k:"nomold",  l:"No damp / mould", type:"yesno"},
-    {k:"nogas",   l:"Electric only (no gas)", type:"yesno"},
-    {k:"elevator",l:"Lift OK / low floor", type:"yesno"},
-    {k:"bike",    l:"Bike storage", type:"yesno"},
-    {k:"modern",  l:"Modern — building feels new", type:"r3",
-     hint:"0 = tired old block, 3 = new build in great shape."},
-    {k:"kitchen", l:"Kitchen size", type:"r3"},
-    {k:"sun",     l:"Sunlight", type:"r3"},
-    {k:"appliances",l:"Appliances OK", type:"r3"},
-    {k:"wintercost",l:"Winter heating zł/mo (info)", type:"num"}
-  ]},
-  {id:"contract", title:"Contract & admin", color:"var(--purple)", fields:[
-    {k:"contract",l:"Contract type", type:"select", opts:["","Standardowa","Okazjonalna"]},
-    {k:"play",    l:"Play internet available", type:"yesno"},
-    {k:"furniture",l:"Furniture changes allowed", type:"r3"}
-  ]},
-  {id:"nice", title:"Nice to have", color:"#4d4d4d", fields:[
-    {k:"bathtub", l:"Bathtub", type:"yesno"},
-    {k:"wardrobe",l:"Wardrobe", type:"yesno"},
-    {k:"balcony", l:"Balcony", type:"yesno"}
-  ]}
-];
+/* Derived, non-editable rows shown inside a category. They are computed from
+   other answers rather than typed, so they are not criteria in the database. */
+const COMPUTED = {
+  cost: [
+    {k:"total",    l:"Total monthly zł"},
+    {k:"persqm",   l:"zł per m² per month"},
+    {k:"headroom", l:"Budget headroom zł"},
+  ]
+};
 
-const OWNER_Q = [
-  "Od kiedy mieszkanie jest dostępne? (nie później niż 1 września)",
-  "Czy jest ogrzewanie miejskie? Jaki jest średni koszt zimą?",
-  "Jaki jest średni miesięczny koszt prądu i gazu?",
-  "Jaka jest wysokość czynszu administracyjnego i co obejmuje?",
-  "Ile wynosi kaucja? Czy jest prowizja pośrednika?",
-  "Kiedy budynek był budowany / mieszkanie remontowane?",
-  "Czy lodówka, pralka i zmywarka działają poprawnie?",
-  "Piekarnik i płyta — gaz czy prąd?",
-  "Jacy dostawcy internetu są dostępni? (preferowany Play)",
-  "Czy umowa będzie standardowa czy okazjonalna?",
-  "Jakie zmiany w umeblowaniu można wprowadzać?",
-  "Czy okna wychodzą na wschód / północ?",
-  "Jakie są relacje z sąsiadami — czy są spokojni?",
-  "Czy jest miejsce na rower (piwnica, rowerownia)?"
-];
-const SELF_Q = [
-  "Czy zmieści się biurko 140×90 cm?",
-  "Czy jest miejsce na pianino 120×50 cm?",
-  "Czy jest oddzielna sypialnia?",
-  "Czy jest dużo światła dziennego?",
-  "Czy okna są nowe i dobrze izolują?",
-  "Czy nie ma wilgoci ani pleśni (rogi, łazienka, za meblami)?",
-  "Czy winda działa poprawnie?",
-  "Czy kuchnia nie jest za mała?",
-  "Czy okolica jest cicha?",
-  "Wanna / szafa / balkon?"
-];
+/* --- schema helpers ------------------------------------------------------ */
+const SCHEMA = {categories:[], criteria:[], places:[], settings:{...FALLBACK_SETTINGS}};
+
+const liveCriteria = () => SCHEMA.criteria.filter(c=>!c.archived);
+const scoredCriteria = () => liveCriteria().filter(c=>c.scored && c.weight > 0);
+const livePlaces = () => SCHEMA.places.filter(p=>!p.archived);
+const critByKey = k => SCHEMA.criteria.find(c=>c.key===k);
+const P = () => SCHEMA.settings;
+
+/* Categories with their criteria attached, in sort order — what the form renders. */
+function groups(){
+  const out = [];
+  for(const cat of SCHEMA.categories.filter(c=>!c.archived).sort((a,b)=>a.sort-b.sort)){
+    const fields = liveCriteria()
+      .filter(c=>c.category_key===cat.key && c.kind!=="budget")
+      .sort((a,b)=>a.sort-b.sort)
+      .map(c=>({k:c.key, l:c.label, hint:c.hint, type:inputType(c),
+                opts:(c.options||[]).map(o=>o.value),
+                wide:["text","textarea","url"].includes(inputType(c)) &&
+                     ["address","link","notes"].includes(c.key)}));
+    for(const extra of (COMPUTED[cat.key]||[])) fields.push({k:extra.k, l:extra.l, type:"calc"});
+    if(fields.length) out.push({id:cat.key, title:cat.title, color:cat.color, fields});
+  }
+  return out;
+}
+function inputType(c){
+  switch(c.kind){
+    case "yesno": return "yesno";
+    case "r3": return "r3";
+    case "enum": return "select";
+    case "num": case "distance": return "num";
+    case "date": return "date";
+    case "datetime": return "datetime-local";
+    case "textarea": return "textarea";
+    case "budget": case "calc": return "calc";
+    default: return c.key === "link" ? "url" : "text";
+  }
+}
+const labelOf = k => critByKey(k)?.label
+  || (Object.values(COMPUTED).flat().find(x=>x.k===k)?.l) || k;
 
 const STATUS_STYLE = {
   "Pending presentation":  ["#ffe699","#7f6000"],
@@ -494,86 +440,91 @@ const STATUS_STYLE = {
   "Signed":                ["#70ad47","#ffffff"]
 };
 
-/* ================================================================ state */
-const KEY = "apartment-hunter-v1";
-const SCHEMA = 3;   // 3 = places, area, modern replaces renovated
+/* ================================================================ state
+   Candidates live in Postgres. Local storage is a read-only mirror: if the
+   server is unreachable you can still open the app, look at everything and see
+   scores, but edits are refused rather than queued. Queueing would let two
+   devices drift apart and need reconciling, which is exactly the class of bug
+   we just spent a session removing.                                        */
+const KEY = "apartment-hunter-v2";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 
-function load(){
-  try{
-    let raw = localStorage.getItem(KEY);
-    if(!raw){ const old = localStorage.getItem("krk-apartments-v1");
-      if(old){ raw = old; localStorage.setItem(KEY, old); } }
-    if(raw){
-      const d = JSON.parse(raw);
-      d.params  = Object.assign({}, DEFAULT_PARAMS,  d.params||{});
-      d.weights = Object.assign({}, DEFAULT_WEIGHTS, d.weights||{});
-      d.candidates = d.candidates||[];
-      d.places = d.places || DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
-      d.ui = d.ui || {hiddenModes:[]};
-      d.tombstones = d.tombstones || {};
-      d.settingsAt = Number(d.settingsAt || 0);
-      const v = d.v||1;
-      if(v < 2){ d.params.overPct = DEFAULT_PARAMS.overPct; d.weights.yearly = DEFAULT_WEIGHTS.yearly; }
-      if(v < 3){
-        // "Renovated" is gone: you would never shortlist an unrenovated flat, so the
-        // rating now only asks whether the building itself feels modern.
-        for(const c of d.candidates){ if(c.renovated!=null && c.modern==null) c.modern = c.renovated;
-                                      delete c.renovated; }
-        delete d.weights.renovated;
-        // Walk-to-work became the "Work" place, scored by real travel times.
-        delete d.weights.workmin;
-        d.migrated = "Updated: 'Renovated' is gone (it's assumed, not scored) and the rating is now "
-                   + "'Modern — building feels new'. Walk-to-work became a Place with real bike and "
-                   + "transit times. Area in m² added for the zł/m² figure.";
-      }
-      d.v = SCHEMA;
-      return d;
-    }
-  }catch(e){ console.warn("could not read saved data", e); }
-  return {v:SCHEMA, params:{...DEFAULT_PARAMS}, weights:{...DEFAULT_WEIGHTS}, ui:{hiddenModes:[]},
-          tombstones:{}, settingsAt:0,
-          places:DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p))),
-          candidates:SEED.map(s=>JSON.parse(JSON.stringify(s)))};
-}
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+let S = {candidates: []};
+let selId = null;
+let ONLINE = false;          // schema + candidates loaded from the server
+let READONLY = true;         // no writes accepted until we are online
 
-/* ================================================================ scoring */
+function cacheWrite(){
+  try{ localStorage.setItem(KEY, JSON.stringify(
+    {schema:SCHEMA, candidates:S.candidates, at:Date.now()})); }catch(e){}
+}
+function cacheRead(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY) || "null");
+    if(!d) return false;
+    Object.assign(SCHEMA, d.schema || {});
+    S.candidates = d.candidates || [];
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Answers are stored under candidate.answers, but the form and the scoring
+   read them by key. These two keep that indirection in one place. */
+const ans = (c, k) => (c && c.answers) ? c.answers[k] : undefined;
+function setAns(c, k, v){
+  c.answers = c.answers || {};
+  if(v === "" || v === null || v === undefined) delete c.answers[k];
+  else c.answers[k] = v;
+}
+
+/* ================================================================ scoring
+   One rule per criterion kind, all driven by the database row. The special
+   cases the old build carried — grocery chains, window orientation, contract
+   type — are now just enums whose options carry points, which reproduces the
+   old numbers exactly without three bespoke branches.                       */
 const clamp01 = x => Math.max(0, Math.min(1, x));
 const numOrNull = v => (v===""||v===null||v===undefined||isNaN(Number(v))) ? null : Number(v);
 
 function costs(c){
-  const parts = [c.rent, c.admin, c.util].map(numOrNull).filter(v=>v!==null);
+  const parts = ["rent","admin","util"].map(k=>numOrNull(ans(c,k))).filter(v=>v!==null);
   const total = parts.length ? parts.reduce((a,b)=>a+b,0) : null;
-  const prov  = numOrNull(c.provision) || 0;
+  const prov  = numOrNull(ans(c,"provision")) || 0;
   const yearly = total===null ? null : total*12 + prov;
-  const area = numOrNull(c.area);
+  const area = numOrNull(ans(c,"area"));
   return {total, yearly,
-          headroom: yearly===null ? null : S.params.budgetYear - yearly,
+          headroom: yearly===null ? null : P().budgetYear - yearly,
           persqm: (total===null || !area) ? null : total/area};
 }
 
 function frac(c, cr){
-  const P = S.params, v = c[cr.k];
+  const v = ans(c, cr.key);
   switch(cr.kind){
     case "budget": {
       const y = costs(c).yearly; if(y===null) return null;
-      return clamp01((P.budgetYear*(1+P.overPct) - y) / (P.budgetYear*P.overPct));
+      const B = P().budgetYear, o = P().overPct || 0.05;
+      return clamp01((B*(1+o) - y) / (B*o));
     }
-    case "lin": { const x = numOrNull(v); if(x===null) return null;
-      const f = P[cr.full], z = P[cr.zero]; return z===f ? null : clamp01((z-x)/(z-f)); }
+    case "distance": {
+      const x = numOrNull(v); if(x===null) return null;
+      const cfg = cr.config || {}; const f = Number(cfg.full), z = Number(cfg.zero);
+      return (isNaN(f) || isNaN(z) || z===f) ? null : clamp01((z-x)/(z-f));
+    }
+    case "num": { const x = numOrNull(v); return x===null ? null : clamp01(x); }
     case "r3": { const x = numOrNull(v); return x===null ? null : clamp01(x/3); }
     case "yesno": return v==="Yes" ? 1 : (v==="No" ? 0 : null);
-    case "contract": return v ? (v==="Standardowa" ? 1 : 0) : null;
-    case "chain": { if(!v) return null; const r = CHAINS.find(x=>x[0]===v);
-      return r ? r[1]/Math.max(...CHAINS.map(x=>x[1])) : 0; }
-    case "windows": { if(!v) return null; const r = WINDOWS.find(x=>x[0]===v); return r ? r[1] : 0; }
+    case "enum": {
+      if(!v) return null;
+      const opts = cr.options || [];
+      const hit = opts.find(o=>o.value===v);
+      const max = Math.max(...opts.map(o=>Number(o.points)||0), 0);
+      return hit ? (max > 0 ? (Number(hit.points)||0)/max : 0) : 0;
+    }
   }
   return null;
 }
-const travelMins = (c,p,m) => numOrNull(c.travel?.[p.id]?.[m.mode]);
+const travelMins = (c,p,m) => numOrNull(c.travel?.[p.key]?.[m.mode]);
 function modeWeight(p, m){
-  const tot = p.modes.reduce((a,x)=>a+(Number(x.share)||0), 0) || 1;
+  const tot = (p.modes||[]).reduce((a,x)=>a+(Number(x.share)||0), 0) || 1;
   return (Number(p.weight)||0) * ((Number(m.share)||0)/tot);
 }
 function modeFrac(c, p, m){
@@ -583,17 +534,18 @@ function modeFrac(c, p, m){
 
 function score(c){
   let earned=0, avail=0, totalW=0; const lost=[];
-  for(const cr of CRIT){
-    const w = Number(S.weights[cr.k])||0; totalW += w;
+  for(const cr of scoredCriteria()){
+    const w = Number(cr.weight)||0; totalW += w;
     const f = frac(c, cr); if(f===null) continue;
     avail += w; earned += w*f;
-    if(f < 0.5 && w >= 3) lost.push({n:cr.n, pts:+(w*(1-f)).toFixed(1)});
+    if(f < 0.5 && w >= 3) lost.push({n:cr.label, pts:+(w*(1-f)).toFixed(1)});
   }
-  for(const p of S.places) for(const m of p.modes){
+  for(const p of livePlaces()) for(const m of (p.modes||[])){
     const w = modeWeight(p,m); totalW += w;
     const f = modeFrac(c,p,m); if(f===null) continue;
     avail += w; earned += w*f;
-    if(f < 0.5 && w >= 2) lost.push({n:`${p.name} by ${MODES[m.mode].toLowerCase()}`, pts:+(w*(1-f)).toFixed(1)});
+    if(f < 0.5 && w >= 2) lost.push({n:`${p.name} by ${MODES[m.mode].toLowerCase()}`,
+                                     pts:+(w*(1-f)).toFixed(1)});
   }
   lost.sort((a,b)=>b.pts-a.pts);
   return {earned, avail, totalW, match: avail>0?earned/avail:null,
@@ -601,60 +553,23 @@ function score(c){
 }
 
 function statusOf(c){
-  const P = S.params, sc = score(c);
+  const sc = score(c), p = P();
   if(!c.link && !c.address) return "";
-  if(c.override) return c.override;
-  if(c.availfrom && P.moveInBy && c.availfrom > P.moveInBy) return "Rejected — too late";
-  if(c.presched === "Yes") return "Presentation scheduled";
-  if(sc.match===null || sc.filled < P.minData) return "Incomplete";
-  if(sc.match >= P.highThr && c.messaged === "Yes" && !c.availfrom) return "Check availability";
-  if(sc.match >= P.highThr && c.messaged === "Yes") return "Pending presentation";
-  if(sc.match >= P.highThr) return "Contact now";
-  if(sc.match >= P.midThr)  return "Shortlist";
+  if(c.status_override) return c.status_override;
+  const availfrom = ans(c,"availfrom");
+  if(availfrom && p.moveInBy && availfrom > p.moveInBy) return "Rejected — too late";
+  if(ans(c,"presched") === "Yes") return "Presentation scheduled";
+  if(sc.match===null || sc.filled < p.minData) return "Incomplete";
+  if(sc.match >= p.highThr && ans(c,"messaged") === "Yes" && !availfrom) return "Check availability";
+  if(sc.match >= p.highThr && ans(c,"messaged") === "Yes") return "Pending presentation";
+  if(sc.match >= p.highThr) return "Contact now";
+  if(sc.match >= p.midThr)  return "Shortlist";
   return "Low match";
 }
 const scoreColor = m => m===null ? "#c3ccd6"
   : m>=0.85 ? "#63be7b" : m>=0.7 ? "#a9cf7a" : m>=0.55 ? "#ffd666" : "#f0836b";
 const money = v => (v===null||v===undefined||v==="") ? "—"
   : Math.round(v).toLocaleString("pl-PL")+" zł";
-
-/* ================================================================ seed */
-const SEED = [
-  { id:"seed-fabryczna", added:1786482449930, photos:[],
-    address:"ul. Fabryczna",
-    link:"https://www.otodom.pl/pl/oferta/pelne-naturalnego-swiatla-w-bardzo-atrakcyjnej-lokalizacji-ID4CyGD",
-    availfrom:"2026-09-01", messaged:"No", presched:"No",
-    rent:"2600", admin:"730", util:"100", kaucja:"2600", area:"47",
-    chain:"Lidl", grocmin:"5", transmin:"5", parkmin:"15", windows:"East", quiet:"2",
-    bedroom:"Yes", heating:"Yes", desk:"Yes", bed:"Yes", newwin:"Yes", nogas:"Yes",
-    elevator:"Yes", kitchen:"2", sun:"3", appliances:"3", modern:"3",
-    contract:"Standardowa", bathtub:"No", wardrobe:"No", balcony:"Yes",
-    travel:{},
-    notes:"Beton building - how's it in winter?\nLocation - how's it going there by bike?\n"+
-          "\nStill to check: piano space, damp, neighbours, bike storage, Play internet, "+
-          "furniture flexibility. Travel times not measured yet."
-  },
-  { id:"seed-wilenska", added:1786477866592, photos:[],
-    address:"ul. Wileńska 7E",
-    link:"https://www.olx.pl/d/oferta/mieszkanie-47-m2-od-wlasciciela-krakow-ul-wilenska-7e-CID3-ID1bO6XV.html",
-    availfrom:"2026-08-11", messaged:"No", presched:"No",
-    rent:"2500", admin:"1000", util:"100", provision:"0", kaucja:"2500", area:"47",
-    chain:"Lewiatan", grocmin:"4", transmin:"1", parkmin:"5",
-    windows:"Other / unknown",
-    bedroom:"Yes", heating:"Yes", desk:"Yes", piano:"Yes", bed:"Yes", newwin:"Yes",
-    nogas:"Yes", elevator:"No", bike:"Yes", kitchen:"3", sun:"3", appliances:"3",
-    modern:"2", contract:"Standardowa", bathtub:"Yes", wardrobe:"No", balcony:"Yes",
-    travel:{},
-    notes:"The building seems to be quite old.\nI love the size of the kitchen and that it's "+
-          "separate.\nI love that there's a bathtub.\nThe same problem as in this apartment "+
-          "with things in the bathroom, there's not enough space for putting them down.\n"+
-          "\nCzynsz of 1000 zl is what puts this 700 zl over the yearly budget. Area 47 m2 "+
-          "taken from the listing title. Still to check: damp, quiet, neighbours, Play internet."
-  }
-];
-
-let S = load();
-let selId = S.candidates.length ? S.candidates[0].id : null;
 
 /* ================================================================ render */
 const $ = s => document.querySelector(s);
@@ -686,7 +601,8 @@ function renderList(){
     const s = score(c), st = statusOf(c), cc = costs(c);
     const pct = s.match===null ? "—" : Math.round(s.match*100)+"%";
     const over = cc.headroom!==null && cc.headroom < 0;
-    const work = S.places[0] ? travelMins(c, S.places[0], S.places[0].modes[0]) : null;
+    const p0 = livePlaces()[0];
+    const work = p0 && p0.modes?.[0] ? travelMins(c, p0, p0.modes[0]) : null;
     return `<div class="cand ${c.id===selId?"sel":""}" data-id="${c.id}">
       <div class="nm">${esc(c.address || "Untitled — add an address")}</div>
       <div class="row2">
@@ -710,7 +626,10 @@ function renderList(){
 }
 
 function field(c, f){
-  const v = c[f.k] ?? "", id = "f_"+f.k;
+  const v = f.type === "calc" ? ""
+          : (["address","link","notes"].includes(f.k) ? (c[f.k] ?? ans(c,f.k) ?? "")
+                                                      : (ans(c, f.k) ?? ""));
+  const id = "f_"+f.k;
   let inner = "";
   if(f.type==="yesno"){
     inner = `<div class="seg" data-k="${f.k}">${["Yes","No",""].map(o=>
@@ -726,7 +645,8 @@ function field(c, f){
   } else if(f.type==="calc"){
     const cc = costs(c);
     const val = {total:cc.total, yearly:cc.yearly, headroom:cc.headroom, persqm:cc.persqm}[f.k];
-    const txt = val===null ? "—" : (f.k==="persqm" ? val.toFixed(1)+" zł/m²" : money(val));
+    const txt = (val===null||val===undefined) ? "—"
+              : (f.k==="persqm" ? val.toFixed(1)+" zł/m²" : money(val));
     const col = (f.k==="headroom" && val!==null && val<0) ? "color:var(--bad)" : "";
     inner = `<input readonly value="${txt}" style="${col}">`;
   } else {
@@ -745,14 +665,14 @@ function travelPanel(c){
     <div style="flex:1"></div>
     <button class="btn sm" id="bCalc" style="color:#155e75">Calculate</button>
     </h3><div class="trav">`;
-  for(const p of S.places){
+  for(const p of livePlaces()){
     h += `<div class="pl"><div class="pn">${esc(p.name)}
       <small>weight ${p.weight}</small></div>`;
-    for(const m of p.modes){
+    for(const m of (p.modes||[])){
       const t = travelMins(c,p,m), f = modeFrac(c,p,m);
       h += `<div class="mrow">
         <span class="ml">${MODES[m.mode]}</span>
-        <input type="number" min="0" step="1" data-pl="${p.id}" data-mo="${m.mode}"
+        <input type="number" min="0" step="1" data-pl="${p.key}" data-mo="${m.mode}"
           value="${t===null?"":t}" placeholder="—">
         <span class="mb"><i style="width:${f===null?0:f*100}%;
           background:${scoreColor(f)}"></i></span>
@@ -760,7 +680,7 @@ function travelPanel(c){
     }
     h += `</div>`;
   }
-  if(!S.places.length) h += `<div class="tiny">No places yet — add some under “Places”.</div>`;
+  if(!livePlaces().length) h += `<div class="tiny">No places yet — add some in the admin panel.</div>`;
   h += `</div><div class="why"><span>Weight is split across modes by the shares you set,
     so bike counts for more than transit. Blank means not measured, and it is left out of the
     score rather than counted as bad.</span></div></div>`;
@@ -785,15 +705,16 @@ function renderForm(){
       <div class="kv">Headroom<b style="${cc.headroom<0?'color:var(--bad)':''}">${money(cc.headroom)}</b></div>
       <div style="flex:1"></div>
       <button class="btn sm danger" id="bDel">Delete</button></div>`;
-  if(cc.headroom!==null && cc.headroom<0){
-    const bf = frac(c, CRIT[0]);
+  const budgetCrit = liveCriteria().find(x=>x.kind==="budget");
+  if(cc.headroom!==null && cc.headroom<0 && budgetCrit){
+    const bf = frac(c, budgetCrit) ?? 0;
     html += `<div class="why"><span class="lost">Over budget by ${money(Math.abs(cc.headroom))}
-      — scoring ${Math.round(bf*100)}% of the ${S.weights.yearly} budget points,
-      costing ${(S.weights.yearly*(1-bf)).toFixed(1)}</span></div>`;
+      — scoring ${Math.round(bf*100)}% of the ${budgetCrit.weight} budget points,
+      costing ${(budgetCrit.weight*(1-bf)).toFixed(1)}</span></div>`;
   }
   if(s.lost.length) html += `<div class="why">Losing most points to:
     ${s.lost.map(l=>`<span class="lost">${esc(l.n)} −${l.pts}</span>`).join("")}</div>`;
-  if(s.match!==null && s.filled < S.params.minData)
+  if(s.match!==null && s.filled < P().minData)
     html += `<div class="why"><span>Only ${Math.round(s.filled*100)}% answered, so this stays
       “Incomplete” — ${pct} off that little says almost nothing.</span></div>`;
   html += `</div>`;
@@ -811,14 +732,19 @@ function renderForm(){
   html += `</div>${c.link?`<div class="why"><a href="${esc(c.link)}" target="_blank"
     rel="noopener">Open the listing ↗</a></div>`:""}</div>`;
 
-  for(const g of GROUPS)
+  for(const g of groups())
     html += `<div class="card sect"><h3 style="--acc:${g.color}">${esc(g.title)}</h3>
       <div class="body">${g.fields.map(f=>field(c,f)).join("")}</div></div>`;
   $("#form").innerHTML = html;
 
   $("#form").querySelectorAll("input[data-k],select[data-k],textarea[data-k]").forEach(el=>{
-    el.addEventListener("input", ()=>{ c[el.dataset.k]=el.value; touch(c); save(); renderList(); refreshBox(); });
-    el.addEventListener("change",()=>{ c[el.dataset.k]=el.value; touch(c); save(); render(); });
+    const write = () => {
+      setAns(c, el.dataset.k, el.value);
+      // these three are columns on the row, not answers — keep both in step
+      if(["address","link","notes"].includes(el.dataset.k)) c[el.dataset.k] = el.value;
+    };
+    el.addEventListener("input", ()=>{ write(); touch(c); save(); renderList(); refreshBox(); });
+    el.addEventListener("change",()=>{ write(); touch(c); save(); render(); });
   });
   $("#form").querySelectorAll("input[data-pl]").forEach(el=>{
     const upd = () => {
@@ -833,13 +759,11 @@ function renderForm(){
   });
   $("#form").querySelectorAll(".seg,.rate").forEach(box=>{
     box.querySelectorAll("button").forEach(b=>{
-      b.onclick = () => { c[box.dataset.k] = b.dataset.v; touch(c); save(); render(); };
+      b.onclick = () => { setAns(c, box.dataset.k, b.dataset.v); touch(c); save(); render(); };
     });
   });
   $("#bDel").onclick = () => { if(!confirm("Delete this candidate?")) return;
-    tombstone(c.id);                       // so the delete survives a merge
-    S.candidates = S.candidates.filter(x=>x.id!==c.id);
-    selId = S.candidates[0]?.id ?? null; save(); render(); };
+    removeCandidate(c); };
   const bc = $("#bCalc"); if(bc) bc.onclick = () => calcTravel(c);
   $("#form").querySelectorAll(".gal img").forEach(im=>{
     im.onclick = () => { $("#lbImg").src = im.src; $("#lb").style.display="flex"; };
@@ -887,26 +811,26 @@ function buildPrint(c){
     <span class="v">____________________</span></div>`;
   let h = `<div class="ps-h">
     <h2>${esc(c.address || "Viewing sheet")}</h2>
-    <div class="m">${esc(c.link||"")} · viewing ${esc((c.presdate||"").replace("T"," "))||"date: ____________"}
+    <div class="m">${esc(c.link||"")} · viewing ${esc((ans(c,"presdate")||"").replace("T"," "))||"date: ____________"}
       · ${money(cc.total)}/mo${cc.persqm!==null?" · "+cc.persqm.toFixed(1)+" zł/m²":""}
       · ${money(cc.yearly)}/yr</div></div>`;
 
   h += `<div class="ps-g"><h4>Known before the viewing</h4>` +
-    row("Rent / czynsz / media", `${money(c.rent)} / ${money(c.admin)} / ${money(c.util)}`) +
-    row("Kaucja / provision", `${money(c.kaucja)} / ${money(c.provision)}`) +
-    row("Area", c.area ? c.area+" m²" : "—") +
-    row("Available from", c.availfrom || "NOT STATED — ask") + `</div>`;
+    row("Rent / czynsz / media",
+        `${money(ans(c,"rent"))} / ${money(ans(c,"admin"))} / ${money(ans(c,"util"))}`) +
+    row("Kaucja / provision", `${money(ans(c,"kaucja"))} / ${money(ans(c,"provision"))}`) +
+    row("Area", ans(c,"area") ? ans(c,"area")+" m²" : "—") +
+    row("Available from", ans(c,"availfrom") || "NOT STATED — ask") + `</div>`;
 
   h += `<div class="ps-g"><h4>Travel (minutes)</h4>`;
-  for(const p of S.places) for(const m of p.modes)
+  for(const p of livePlaces()) for(const m of (p.modes||[]))
     h += row(`${p.name} — ${MODES[m.mode]}`, travelMins(c,p,m) ?? "—");
   h += `</div>`;
 
   h += `<div class="ps-g"><h4>Check yourself</h4><div class="ps-two">`;
   h += SELF_Q.map(q=>`<div class="ps-q">☐ ${esc(q)}</div>`).join("");
   h += `</div></div><div class="ps-g"><h4>Rate on the spot (0–3)</h4><div class="ps-two">`;
-  h += ["Modern — building feels new","Kitchen size","Sunlight","Appliances",
-        "Quiet area","Neighbours","Furniture flexibility"]
+  h += liveCriteria().filter(x=>x.kind==="r3").map(x=>x.label)
         .map(l=>`<div class="ps-q">${esc(l)} &nbsp; 0 ☐ &nbsp; 1 ☐ &nbsp; 2 ☐ &nbsp; 3 ☐</div>`).join("");
   h += `</div></div><div class="ps-g"><h4>Ask the owner</h4>`;
   h += OWNER_Q.map(q=>`<div class="ps-q">☐ ${esc(q)} <span style="color:#999">
@@ -932,171 +856,421 @@ $("#bNew").onclick = () => { const c = {id:uid(), added:Date.now(), photos:[], t
   touch(c); S.candidates.unshift(c); selId = c.id; save(); render();
   setTimeout(()=>$("#form").querySelector('input[data-k="address"]')?.focus(), 30); };
 
-/* ---------------------------------------------------------- places editor */
-$("#bPlaces").onclick = () => {
-  const body = () => `
-    <div class="note">Weight = how much this destination matters. Each mode's share splits that
-    weight, so bike 0.7 / transit 0.3 means bike counts for more than twice as much.
-    <b>full</b> = minutes that still earn full points, <b>zero</b> = minutes worth nothing.</div>
-    <div id="plList">${S.places.map((p,i)=>placeEditor(p,i)).join("")}</div>
-    <button class="btn" id="bAddPlace">+ Add a place</button>`;
-  const open = () => {
-    dialog("Places you travel to", body(),
-      [{label:"Reset to defaults", act(){ S.places = DEFAULT_PLACES.map(p=>JSON.parse(JSON.stringify(p)));
-          touchSettings(); save(); render(); }},
-       {label:"Done", primary:true, act(){ save(); render(); }}]);
-    wirePlaces(open);
-  };
-  open();
-};
-function placeEditor(p,i){
-  return `<div class="pe" data-i="${i}">
-    <div class="r">
-      <input type="text" data-f="name" value="${esc(p.name)}" placeholder="Name">
-      <input type="number" data-f="weight" value="${p.weight}" min="0" step="1" title="Weight">
-      <button class="btn sm danger" data-del="${i}">Remove</button>
-    </div>
-    <div class="r"><input type="text" data-f="address" value="${esc(p.address||"")}"
-      placeholder="Address — used for travel times">
-      <span class="tiny">leave at</span>
-      <input type="number" data-f="departHour" step="0.5" min="0" max="23"
-        value="${p.departHour ?? ""}" placeholder="${S.params.departHour}"
-        title="Hour of day used for transit and traffic. Blank = the global default.">
-    </div>
-    ${p.modes.map((m,j)=>`<div class="r" data-m="${j}" style="gap:5px">
-      <select data-f="mode" style="padding:5px;border:1px solid var(--line);border-radius:5px">
-        ${Object.keys(MODES).map(k=>`<option value="${k}" ${m.mode===k?"selected":""}>${MODES[k]}</option>`).join("")}
-      </select>
-      <span class="tiny">share</span><input type="number" data-f="share" value="${m.share}" step="0.1" min="0">
-      <span class="tiny">full</span><input type="number" data-f="full" value="${m.full}" min="0">
-      <span class="tiny">zero</span><input type="number" data-f="zero" value="${m.zero}" min="1">
-      <button class="btn sm" data-delm="${j}">✕</button></div>`).join("")}
-    <button class="btn sm" data-addm="${i}">+ mode</button>
-    <span class="tiny" style="margin-left:8px">${p.modes.map(m=>
-      MODES[m.mode]+" "+modeWeight(p,m).toFixed(1)+"pts").join(" · ")}</span>
-  </div>`;
+/* ---------------------------------------------------------- admin panel
+   Everything that used to live behind the Places and Weights buttons, plus
+   full control of categories and criteria. Writes go straight to the API;
+   nothing is editable while offline, because a local edit could not be
+   reconciled against a database it never saw.                              */
+let ADMIN = {tab:"criteria", openCat:null};
+
+function importanceChip(imp){
+  const m = {must:["#fdeae3","#8a2b00","Must"], important:["#fff4d9","#7a5a00","Important"],
+             nice:["#eef4fb","#1f4e79","Nice"], none:["#f1f4f7","#69737f","Not scored"]};
+  const [bg,fg,label] = m[imp] || m.none;
+  return `<span class="chip" style="background:${bg};color:${fg}">${label}</span>`;
 }
-function wirePlaces(reopen){
+
+function openAdmin(tab){
+  if(!ONLINE) return dialog("Admin unavailable", `<div class="note warn">
+    The schema lives on the server and it is not reachable right now, so nothing
+    can be edited. Scores and candidates are still readable from the local
+    cache.</div>`, [{label:"Close", primary:true}]);
+  ADMIN.tab = tab || ADMIN.tab;
+  dialog("Admin", adminBody(), [{label:"Done", primary:true, act(){ render(); }}]);
+  wireAdmin();
+}
+function adminBody(){
+  const tabs = [["criteria","Criteria"],["places","Places"],["settings","Scoring rules"]];
+  let h = `<div class="tabs">${tabs.map(([k,l])=>
+    `<button class="tab ${ADMIN.tab===k?"on":""}" data-tab="${k}">${l}</button>`).join("")}</div>`;
+  if(ADMIN.tab === "criteria") h += adminCriteria();
+  if(ADMIN.tab === "places")   h += adminPlaces();
+  if(ADMIN.tab === "settings") h += adminSettings();
+  return h;
+}
+
+/* --- criteria & categories ----------------------------------------------- */
+function adminCriteria(){
+  const total = scoredCriteria().reduce((a,c)=>a+c.weight,0)
+              + livePlaces().reduce((a,p)=>a+(p.modes||[]).reduce((x,m)=>x+modeWeight(p,m),0),0);
+  let h = `<div class="note">Weight comes from the importance you pick — must 5,
+    important 3, nice 1 — unless you set a number yourself. Total across
+    everything scored right now: <b>${total.toFixed(1)}</b>. Only the ratio
+    matters, not the absolute size.</div>`;
+
+  for(const cat of SCHEMA.categories.filter(c=>!c.archived).sort((a,b)=>a.sort-b.sort)){
+    const kids = SCHEMA.criteria.filter(c=>c.category_key===cat.key && !c.archived)
+                                .sort((a,b)=>a.sort-b.sort);
+    const catW = kids.filter(k=>k.scored).reduce((a,k)=>a+k.weight,0);
+    h += `<div class="adcat">
+      <div class="adcat-h" data-cat="${esc(cat.key)}">
+        <span class="swatch" style="background:${esc(cat.color)}"></span>
+        <b>${esc(cat.title)}</b>
+        <span class="tiny">${kids.length} criteria · weight ${catW.toFixed(1)}</span>
+        <div style="flex:1"></div>
+        <button class="btn sm" data-editcat="${cat.id}">Edit</button>
+        <button class="btn sm danger" data-delcat="${cat.id}">Archive</button>
+      </div>
+      <div class="adcat-b">`;
+    for(const c of kids){
+      h += `<div class="adrow" data-crit="${c.id}">
+        <span class="adlabel">${esc(c.label)}
+          ${c.builtin?"":`<span class="tiny" style="color:#9aa5b1">custom</span>`}</span>
+        <span class="tiny mono">${esc(c.kind)}</span>
+        ${importanceChip(c.importance)}
+        <span class="wcell">${c.scored ? c.weight : "—"}</span>
+        <button class="btn sm" data-editcrit="${c.id}">Edit</button>
+        <button class="btn sm danger" data-delcrit="${c.id}">Archive</button>
+      </div>`;
+    }
+    h += `<button class="btn sm" data-addcrit="${esc(cat.key)}"
+            style="margin:8px">+ criterion</button></div></div>`;
+  }
+  const archived = SCHEMA.criteria.filter(c=>c.archived);
+  if(archived.length) h += `<div class="note" style="margin-top:12px">
+    ${archived.length} archived — hidden from the form and not scored, but every
+    answer already recorded against them is still stored.
+    ${archived.map(c=>`<button class="btn sm" data-unarch="${c.id}"
+      style="margin:3px 3px 0 0">${esc(c.label)} ↩</button>`).join("")}</div>`;
+  h += `<button class="btn" id="addCat" style="margin-top:12px">+ category</button>`;
+  return h;
+}
+
+function critForm(c, catKey){
+  const kinds = [["yesno","Yes / No"],["r3","Rating 0–3"],["num","Number"],
+                 ["enum","Pick from a list"],["distance","Minutes away"],
+                 ["date","Date"],["text","Text"],["textarea","Long text"]];
+  const imps = [["must","Must have"],["important","Important"],["nice","Nice to have"],
+                ["none","Not scored"]];
+  return `
+    <div class="f"><label>Label</label>
+      <input id="cfLabel" value="${esc(c?.label||"")}" placeholder="Balcony faces the courtyard"></div>
+    <div class="f" style="margin-top:9px"><label>Hint shown under the field, and given to the scraper</label>
+      <input id="cfHint" value="${esc(c?.hint||"")}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px">
+      <div class="f"><label>Type</label><select id="cfKind" ${c?.builtin?"disabled":""}>
+        ${kinds.map(([k,l])=>`<option value="${k}" ${c?.kind===k?"selected":""}>${l}</option>`).join("")}
+      </select>${c?.builtin?`<div class="hint">Built-in — type is fixed so recorded answers stay valid.</div>`:""}</div>
+      <div class="f"><label>Importance</label><select id="cfImp">
+        ${imps.map(([k,l])=>`<option value="${k}" ${c?.importance===k?"selected":""}>${l}</option>`).join("")}
+      </select></div>
+    </div>
+    <div class="f" style="margin-top:9px">
+      <label><input type="checkbox" id="cfCustomW" ${c?.weight_override!=null?"checked":""}
+        style="width:auto;margin-right:6px">Set the weight myself</label>
+      <input type="number" id="cfWeight" step="0.5" min="0"
+        value="${c?.weight_override ?? ""}" placeholder="derived from importance"
+        style="${c?.weight_override!=null?"":"display:none"}"></div>
+    <div class="f" id="cfOptWrap" style="margin-top:9px;${c?.kind==="enum"?"":"display:none"}">
+      <label>Choices, one per line, as <code>label = points</code></label>
+      <textarea id="cfOpts" rows="5" placeholder="Lidl = 5&#10;Biedronka = 2">${
+        esc((c?.options||[]).map(o=>`${o.value} = ${o.points}`).join("\n"))}</textarea>
+      <div class="hint">Highest points scores full marks; the rest scale against it.</div></div>
+    <div class="f" id="cfDistWrap" style="margin-top:9px;${c?.kind==="distance"?"":"display:none"}">
+      <label>Minutes: full marks at / nothing at</label>
+      <div style="display:flex;gap:6px">
+        <input type="number" id="cfFull" value="${c?.config?.full ?? 5}">
+        <input type="number" id="cfZero" value="${c?.config?.zero ?? 20}"></div></div>
+    <div class="f" style="margin-top:9px">
+      <label><input type="checkbox" id="cfPhoto" ${c?.photo_evidence?"checked":""}
+        style="width:auto;margin-right:6px">A photograph can answer this</label>
+      <div class="hint">Only tick when it is genuinely visible. The vision pass is
+        never offered fields it cannot see, because it will answer anyway.</div></div>
+    <div class="f" style="margin-top:6px">
+      <label><input type="checkbox" id="cfScrape" ${c?(c.scrapable?"checked":""):"checked"}
+        style="width:auto;margin-right:6px">Ask the scraper for it</label></div>
+    <input type="hidden" id="cfCat" value="${esc(catKey || c?.category_key || "")}">`;
+}
+
+function readCritForm(){
+  const kind = $("#cfKind").value;
+  const body = {
+    label: $("#cfLabel").value.trim(),
+    hint: $("#cfHint").value.trim() || null,
+    kind, importance: $("#cfImp").value,
+    weight_override: $("#cfCustomW").checked ? (Number($("#cfWeight").value)||0) : null,
+    category_key: $("#cfCat").value || null,
+    scored: $("#cfImp").value !== "none",
+    photo_evidence: $("#cfPhoto").checked,
+    scrapable: $("#cfScrape").checked,
+    options: null, config: null,
+  };
+  if(kind === "enum"){
+    body.options = $("#cfOpts").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
+      const m = l.split("=");
+      return {value: m[0].trim(), points: Number((m[1]||"1").trim()) || 0};
+    }).filter(o=>o.value);
+  }
+  if(kind === "distance")
+    body.config = {full: Number($("#cfFull").value)||0, zero: Number($("#cfZero").value)||1};
+  return body;
+}
+
+function wireCritForm(){
+  const sync = () => {
+    const k = $("#cfKind").value;
+    $("#cfOptWrap").style.display  = k === "enum" ? "" : "none";
+    $("#cfDistWrap").style.display = k === "distance" ? "" : "none";
+  };
+  $("#cfKind").onchange = sync;
+  $("#cfCustomW").onchange = () => {
+    $("#cfWeight").style.display = $("#cfCustomW").checked ? "" : "none";
+  };
+  sync();
+}
+
+function wireAdmin(){
   const B = $("#dlgB");
-  B.querySelectorAll(".pe").forEach(pe=>{
-    const p = S.places[+pe.dataset.i];
-    pe.querySelectorAll(':scope > .r > [data-f]').forEach(el=>{
-      el.addEventListener("change", ()=>{
-        p[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value;
-        touchSettings(); save(); });
-    });
-    pe.querySelectorAll('[data-m]').forEach(mr=>{
-      const m = p.modes[+mr.dataset.m];
-      mr.querySelectorAll('[data-f]').forEach(el=>{
-        el.addEventListener("change", ()=>{
-          m[el.dataset.f] = el.type==="number" ? Number(el.value) : el.value;
-          touchSettings(); save(); reopen(); });
-      });
-      mr.querySelector('[data-delm]').onclick = () => {
-        p.modes.splice(+mr.dataset.m,1); touchSettings(); save(); reopen(); };
-    });
-    pe.querySelector('[data-del]').onclick = () => {
-      S.places.splice(+pe.dataset.i,1); touchSettings(); save(); reopen(); };
-    pe.querySelector('[data-addm]').onclick = () => {
-      p.modes.push({mode:"WALKING",share:0.3,full:15,zero:35}); touchSettings(); save(); reopen(); };
+  B.querySelectorAll(".tab").forEach(t=>{
+    t.onclick = () => { ADMIN.tab = t.dataset.tab; B.innerHTML = adminBody(); wireAdmin(); };
   });
-  $("#bAddPlace").onclick = () => {
-    S.places.push({id:uid(), name:"New place", address:"", weight:2,
+  const reopen = () => { B.innerHTML = adminBody(); wireAdmin(); };
+
+  B.querySelectorAll("[data-addcrit]").forEach(b=> b.onclick = () => {
+    const cat = b.dataset.addcrit;
+    dialog("New criterion", critForm(null, cat), [
+      {label:"Cancel", act:()=>openAdmin()},
+      {label:"Create", primary:true, act: async () => {
+        await apiSchema("POST", "/api/admin/criteria", readCritForm());
+        await loadSchema(); openAdmin();
+      }}]);
+    wireCritForm();
+  });
+  B.querySelectorAll("[data-editcrit]").forEach(b=> b.onclick = () => {
+    const c = SCHEMA.criteria.find(x=>x.id === +b.dataset.editcrit);
+    dialog("Edit criterion", critForm(c), [
+      {label:"Cancel", act:()=>openAdmin()},
+      {label:"Save", primary:true, act: async () => {
+        await apiSchema("PATCH", "/api/admin/criteria/"+c.id, readCritForm());
+        await loadSchema(); openAdmin();
+      }}]);
+    wireCritForm();
+  });
+  B.querySelectorAll("[data-delcrit]").forEach(b=> b.onclick = async () => {
+    const c = SCHEMA.criteria.find(x=>x.id === +b.dataset.delcrit);
+    let used = null;
+    try{ used = await api("/api/admin/usage/"+encodeURIComponent(c.key)); }catch(e){}
+    const msg = used
+      ? `<b>${used.candidates_with_value}</b> of ${used.candidates_total} candidates have an
+         answer for this. Archiving hides it and stops it scoring — those answers stay
+         stored and come back if you restore it.`
+      : "Archiving hides it and stops it scoring. Recorded answers are kept.";
+    dialog("Archive “"+c.label+"”?", `<div class="note">${msg}</div>`, [
+      {label:"Cancel", act:()=>openAdmin()},
+      {label:"Archive", primary:true, act: async () => {
+        await apiSchema("DELETE", "/api/admin/criteria/"+c.id);
+        await loadSchema(); openAdmin();
+      }}]);
+  });
+  B.querySelectorAll("[data-unarch]").forEach(b=> b.onclick = async () => {
+    const c = SCHEMA.criteria.find(x=>x.id === +b.dataset.unarch);
+    await apiSchema("PATCH", "/api/admin/criteria/"+c.id, {
+      label:c.label, hint:c.hint, kind:c.kind, importance:c.importance,
+      weight_override:c.weight_override, category_key:c.category_key,
+      scored:c.scored, photo_evidence:c.photo_evidence, scrapable:c.scrapable,
+      options:c.options, config:c.config, archived:false});
+    await loadSchema(); reopen();
+  });
+
+  const catForm = cat => `
+    <div class="f"><label>Name</label><input id="ctTitle" value="${esc(cat?.title||"")}"></div>
+    <div class="f" style="margin-top:9px"><label>Colour</label>
+      <input type="color" id="ctColor" value="${esc(cat?.color||"#4d4d4d")}"
+             style="height:38px;padding:3px"></div>`;
+  const addCat = $("#addCat");
+  if(addCat) addCat.onclick = () => dialog("New category", catForm(null), [
+    {label:"Cancel", act:()=>openAdmin()},
+    {label:"Create", primary:true, act: async () => {
+      await apiSchema("POST","/api/admin/categories",
+        {title:$("#ctTitle").value.trim(), color:$("#ctColor").value});
+      await loadSchema(); openAdmin();
+    }}]);
+  B.querySelectorAll("[data-editcat]").forEach(b=> b.onclick = () => {
+    const cat = SCHEMA.categories.find(x=>x.id === +b.dataset.editcat);
+    dialog("Edit category", catForm(cat), [
+      {label:"Cancel", act:()=>openAdmin()},
+      {label:"Save", primary:true, act: async () => {
+        await apiSchema("PATCH","/api/admin/categories/"+cat.id,
+          {title:$("#ctTitle").value.trim(), color:$("#ctColor").value});
+        await loadSchema(); openAdmin();
+      }}]);
+  });
+  B.querySelectorAll("[data-delcat]").forEach(b=> b.onclick = () => {
+    const cat = SCHEMA.categories.find(x=>x.id === +b.dataset.delcat);
+    const n = SCHEMA.criteria.filter(c=>c.category_key===cat.key && !c.archived).length;
+    dialog("Archive “"+cat.title+"”?", `<div class="note">This archives the category
+      and the <b>${n}</b> criteria inside it. They stop appearing and stop scoring;
+      every answer already recorded stays in the database.</div>`, [
+      {label:"Cancel", act:()=>openAdmin()},
+      {label:"Archive all", primary:true, act: async () => {
+        await apiSchema("DELETE","/api/admin/categories/"+cat.id);
+        await loadSchema(); openAdmin();
+      }}]);
+  });
+
+  wireAdminPlaces(reopen);
+  wireAdminSettings();
+}
+
+/* --- places -------------------------------------------------------------- */
+function adminPlaces(){
+  let h = `<div class="note">Weight is how much a destination matters overall. Each
+    mode's share splits that weight, so bike 0.7 and transit 0.3 means the bike time
+    counts for more than twice as much.</div>`;
+  for(const p of livePlaces()){
+    h += `<div class="pe" data-place="${p.id}">
+      <div class="r">
+        <input type="text" data-pf="name" value="${esc(p.name)}" placeholder="Name">
+        <input type="number" data-pf="weight" value="${p.weight}" min="0" step="0.5" title="Weight">
+        <input type="number" data-pf="departHour" value="${p.departHour ?? ""}"
+               step="0.5" min="0" max="23" placeholder="${P().departHour}" title="Leave at">
+        <button class="btn sm danger" data-delplace="${p.id}">Remove</button>
+      </div>
+      <div class="r"><input type="text" data-pf="address" value="${esc(p.address||"")}"
+        placeholder="Address"></div>
+      ${(p.modes||[]).map((m,j)=>`<div class="r" data-mode="${j}" style="gap:5px">
+        <select data-mf="mode" style="padding:5px;border:1px solid var(--line);border-radius:6px">
+          ${Object.keys(MODES).map(k=>`<option value="${k}" ${m.mode===k?"selected":""}>${MODES[k]}</option>`).join("")}
+        </select>
+        <span class="tiny">share</span><input type="number" data-mf="share" value="${m.share}" step="0.1" min="0">
+        <span class="tiny">full</span><input type="number" data-mf="full" value="${m.full}" min="0">
+        <span class="tiny">zero</span><input type="number" data-mf="zero" value="${m.zero}" min="1">
+        <button class="btn sm" data-delmode="${j}">✕</button></div>`).join("")}
+      <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+        <button class="btn sm" data-addmode="${p.id}">+ mode</button>
+        <span class="tiny">${(p.modes||[]).map(m=>
+          MODES[m.mode]+" "+modeWeight(p,m).toFixed(1)).join(" · ")}</span>
+        <div style="flex:1"></div>
+        <button class="btn sm primary" data-saveplace="${p.id}">Save</button>
+      </div></div>`;
+  }
+  return h + `<button class="btn" id="addPlace" style="margin-top:10px">+ place</button>`;
+}
+function placePayload(el, p){
+  const g = f => el.querySelector(`[data-pf="${f}"]`)?.value;
+  const modes = [...el.querySelectorAll("[data-mode]")].map(mr=>({
+    mode: mr.querySelector('[data-mf="mode"]').value,
+    share: Number(mr.querySelector('[data-mf="share"]').value)||0,
+    full: Number(mr.querySelector('[data-mf="full"]').value)||0,
+    zero: Number(mr.querySelector('[data-mf="zero"]').value)||1,
+  }));
+  const addressChanged = (g("address")||"") !== (p.address||"");
+  return {name:g("name"), address:g("address")||null,
+          weight:Number(g("weight"))||0,
+          depart_hour: g("departHour") === "" ? null : Number(g("departHour")),
+          // a new address invalidates the old coordinates, so drop them and
+          // let the next Calculate geocode it afresh
+          lat: addressChanged ? null : p.lat, lon: addressChanged ? null : p.lon,
+          modes};
+}
+async function savePlace(p){
+  await apiSchema("PATCH", "/api/admin/places/"+p.id, {
+    name:p.name, address:p.address, weight:p.weight, depart_hour:p.departHour,
+    lat:p.lat, lon:p.lon, modes:p.modes});
+}
+function wireAdminPlaces(reopen){
+  const B = $("#dlgB");
+  B.querySelectorAll("[data-saveplace]").forEach(b=> b.onclick = async () => {
+    const el = b.closest(".pe");
+    const p = SCHEMA.places.find(x=>x.id === +b.dataset.saveplace);
+    await apiSchema("PATCH","/api/admin/places/"+p.id, placePayload(el, p));
+    await loadSchema(); MAP.routeSig = null; MAP.fitted = false; reopen();
+  });
+  B.querySelectorAll("[data-delplace]").forEach(b=> b.onclick = async () => {
+    if(!confirm("Remove this place? Travel times already measured stay on each candidate.")) return;
+    await apiSchema("DELETE","/api/admin/places/"+b.dataset.delplace);
+    await loadSchema(); reopen();
+  });
+  B.querySelectorAll("[data-addmode]").forEach(b=> b.onclick = async () => {
+    const p = SCHEMA.places.find(x=>x.id === +b.dataset.addmode);
+    p.modes = (p.modes||[]).concat([{mode:"WALKING",share:0.3,full:15,zero:35}]);
+    await savePlace(p); await loadSchema(); reopen();
+  });
+  B.querySelectorAll("[data-delmode]").forEach(b=> b.onclick = async () => {
+    const el = b.closest(".pe");
+    const p = SCHEMA.places.find(x=>x.id === +el.dataset.place);
+    p.modes.splice(+b.dataset.delmode, 1);
+    await savePlace(p); await loadSchema(); reopen();
+  });
+  const add = $("#addPlace");
+  if(add) add.onclick = async () => {
+    await apiSchema("POST","/api/admin/places", {name:"New place", weight:2,
       modes:[{mode:"BICYCLING",share:0.7,full:12,zero:30},
              {mode:"TRANSIT",share:0.3,full:18,zero:40}]});
-    touchSettings(); save(); reopen(); };
+    await loadSchema(); reopen();
+  };
 }
 
-/* ---------------------------------------------------------- weights */
-$("#bWeights").onclick = () => {
-  const P = S.params;
-  const rows = CRIT.map(cr=>`<tr><td>${esc(cr.n)}</td>
-    <td><input type="number" min="0" step="1" data-w="${cr.k}" value="${S.weights[cr.k]}"></td></tr>`).join("");
-  const placeRows = S.places.map(p=>`<tr><td>${esc(p.name)}
-    <span class="tiny">(edit under Places)</span></td>
-    <td style="text-align:center">${p.weight}</td></tr>`).join("");
-  dialog("Weights & rules", `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px">
-      <div class="f"><label>Yearly budget (zł)</label>
-        <input type="number" data-p="budgetYear" value="${P.budgetYear}"></div>
-      <div class="f"><label>Available no later than</label>
-        <input type="date" data-p="moveInBy" value="${esc(P.moveInBy)}"></div>
-      <div class="f"><label>City</label>
-        <input type="text" data-p="city" value="${esc(P.city||"")}">
-        <div class="hint">Added to addresses that omit it, when looking them up on the map.</div></div>
-      <div class="f"><label>Country code</label>
-        <input type="text" data-p="region" value="${esc(P.region||"")}"></div>
-      <div class="f"><label>Score hits 0 at % over budget</label>
-        <input type="number" data-p="overPct" value="${Math.round(P.overPct*100)}"></div>
-      <div class="f"><label>Min. data before ranking (%)</label>
-        <input type="number" data-p="minData" value="${Math.round(P.minData*100)}"></div>
-      <div class="f"><label>“Pending presentation” at (%)</label>
-        <input type="number" data-p="highThr" value="${Math.round(P.highThr*100)}"></div>
-      <div class="f"><label>“Shortlist” at (%)</label>
-        <input type="number" data-p="midThr" value="${Math.round(P.midThr*100)}"></div>
-    </div>
-    <table class="wt">${rows}${placeRows}</table>`,
-    [{label:"Reset", act(){ S.params={...DEFAULT_PARAMS}; S.weights={...DEFAULT_WEIGHTS};
-        touchSettings(); save(); render(); }},
-     {label:"Save", primary:true, act(){
-        $("#dlgB").querySelectorAll("[data-p]").forEach(i=>{ const k=i.dataset.p;
-          S.params[k] = ["moveInBy","city","region"].includes(k) ? i.value
-            : ["highThr","midThr","minData","overPct"].includes(k) ? (Number(i.value)||0)/100
-            : Number(i.value)||0; });
-        $("#dlgB").querySelectorAll("[data-w]").forEach(i=>{ S.weights[i.dataset.w]=Number(i.value)||0; });
-        touchSettings(); save(); render(); }}]);
-};
+/* --- scoring rules ------------------------------------------------------- */
+function adminSettings(){
+  const p = P();
+  const num = (k,l,v,hint) => `<div class="f"><label>${l}</label>
+    <input type="number" data-s="${k}" value="${v}">${hint?`<div class="hint">${hint}</div>`:""}</div>`;
+  return `<div class="note">These apply to every candidate. Percentages are whole
+    numbers here — 75 means 75%.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    ${num("budgetYear","Yearly budget (zł)",p.budgetYear,
+          "12 × total monthly + provision, compared against this.")}
+    <div class="f"><label>Available no later than</label>
+      <input type="date" data-s="moveInBy" value="${esc(p.moveInBy||"")}">
+      <div class="hint">A later date rejects the flat outright.</div></div>
+    ${num("overPct","Score hits 0 at % over budget",Math.round((p.overPct||0)*100))}
+    ${num("minData","Minimum data before ranking (%)",Math.round((p.minData||0)*100),
+          "Below this a candidate stays Incomplete.")}
+    ${num("highThr","“Pending presentation” at (%)",Math.round((p.highThr||0)*100))}
+    ${num("midThr","“Shortlist” at (%)",Math.round((p.midThr||0)*100))}
+    ${num("departHour","Routes timed for hour of day",p.departHour)}
+    <div class="f"><label>City</label><input data-s="city" value="${esc(p.city||"")}">
+      <div class="hint">Added to addresses that omit it when geocoding.</div></div>
+  </div>
+  <button class="btn primary" id="saveSettings" style="margin-top:12px">Save rules</button>`;
+}
+function wireAdminSettings(){
+  const b = $("#saveSettings"); if(!b) return;
+  b.onclick = async () => {
+    const out = {};
+    $("#dlgB").querySelectorAll("[data-s]").forEach(i=>{
+      const k = i.dataset.s;
+      out[k] = ["moveInBy","city"].includes(k) ? i.value
+             : ["overPct","minData","highThr","midThr"].includes(k) ? (Number(i.value)||0)/100
+             : Number(i.value)||0;
+    });
+    await putSettings(out);
+    b.textContent = "Saved";
+    setTimeout(()=>{ b.textContent = "Save rules"; }, 1200);
+  };
+}
 
-/* ---------------------------------------------------------- export/import */
+/* ---------------------------------------------------------- export */
 $("#bExport").onclick = () => {
-  const json = JSON.stringify({exported:new Date().toISOString(), v:SCHEMA,
-    params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
-    tombstones:S.tombstones||{}, settingsAt:S.settingsAt||0,
-    candidates:S.candidates}, null, 2);
-  dialog("Export", `<div class="note">Hand this JSON to Claude and it rebuilds the spreadsheet.
-    Use it to move your data between this phone and your desktop — they do not share storage.</div>
+  const json = JSON.stringify({exported:new Date().toISOString(),
+    schema:SCHEMA, candidates:S.candidates.map(toRow)}, null, 2);
+  dialog("Export", `<div class="note">A snapshot of the schema and every candidate,
+    straight from what the page currently holds. The server is the source of truth —
+    this is for keeping a copy or handing to Claude, not for restoring.</div>
     <textarea class="mono" id="expT" readonly>${esc(json)}</textarea>`,
     [{label:"Download CSV", close:false, act(){ dl(toCSV(),"apartment-hunter.csv","text/csv"); }},
      {label:"Copy JSON", close:false, act(){ navigator.clipboard?.writeText(json); $("#expT").select(); }},
-     {label:"Download JSON", primary:true, act(){ dl(json,"apartment-hunter.json","application/json"); }}]);
+     {label:"Download JSON", primary:true,
+      act(){ dl(json,"apartment-hunter.json","application/json"); }}]);
 };
-$("#bImport").onclick = () => dialog("Import",
-  `<div class="note">Paste JSON exported from this page. Replace wipes what is here now.</div>
-   <textarea class="mono" id="impT" placeholder='{"candidates":[ ... ]}'></textarea>`,
-  [{label:"Merge", act(){ doImport(false); }},
-   {label:"Replace all", primary:true, act(){ doImport(true); }}]);
-function doImport(replace){
-  try{
-    const d = JSON.parse($("#impT").value);
-    const inc = (d.candidates||[]).map(c=>Object.assign(
-      {id:uid(),added:Date.now(),photos:[],travel:{}}, c, {updatedAt:Date.now()}));
-    if(replace){ S.candidates = inc;
-      if(d.params) S.params = Object.assign({},DEFAULT_PARAMS,d.params);
-      if(d.weights) S.weights = Object.assign({},DEFAULT_WEIGHTS,d.weights);
-      if(d.places) S.places = d.places;
-    } else { const seen = new Set(S.candidates.map(c=>c.link).filter(Boolean));
-      S.candidates = S.candidates.concat(inc.filter(c=>!c.link || !seen.has(c.link))); }
-    touchSettings();
-    selId = S.candidates[0]?.id ?? null; save(); render();
-  }catch(e){ alert("Not valid JSON:\n\n"+e.message); }
-}
+
 function toCSV(){
-  const keys = ["address","link","availfrom","rent","admin","util","area","provision","kaucja",
-    "chain","grocmin","transmin","quiet","parkmin","windows","neighbors","bedroom","heating",
-    "modern","kitchen","desk","piano","sun","bed","newwin","nomold","appliances","nogas",
-    "elevator","bike","contract","play","furniture","bathtub","wardrobe","balcony",
-    "messaged","presched","notes"];
+  const keys = liveCriteria().map(c=>c.key);
   const travCols = [];
-  for(const p of S.places) for(const m of p.modes) travCols.push([p,m]);
+  for(const p of livePlaces()) for(const m of (p.modes||[])) travCols.push([p,m]);
   const head = ["status","match_pct","monthly","per_sqm","yearly","headroom"]
-    .concat(travCols.map(([p,m])=>`${p.name} (${MODES[m.mode]}) min`)).concat(keys);
+    .concat(travCols.map(([p,m])=>`${p.name} (${MODES[m.mode]}) min`))
+    .concat(keys.map(k=>labelOf(k)));
   const q = v => `"${String(v??"").replace(/"/g,'""')}"`;
   const lines = [head.join(",")];
-  for(const c of S.candidates){ const s=score(c), cc=costs(c);
+  for(const c of S.candidates){
+    const s = score(c), cc = costs(c);
     lines.push([statusOf(c), s.match===null?"":Math.round(s.match*100), cc.total??"",
       cc.persqm===null?"":cc.persqm.toFixed(1), cc.yearly??"", cc.headroom??""]
       .concat(travCols.map(([p,m])=>travelMins(c,p,m) ?? ""))
-      .concat(keys.map(k=>c[k]??"")).map(q).join(",")); }
+      .concat(keys.map(k=>ans(c,k) ?? "")).map(q).join(","));
+  }
   return lines.join("\n");
 }
 function dl(text,name,mime){ const a=document.createElement("a");
@@ -1164,7 +1338,7 @@ function loadMaps(key){
 }
 async function geocode(address){
   const {Geocoder} = await google.maps.importLibrary("geocoding");
-  const r = await new Geocoder().geocode({address, region:S.params.region||"pl"});
+  const r = await new Geocoder().geocode({address, region:P().region||"pl"});
   if(!r.results?.length) throw new Error("could not find “"+address+"” on the map");
   const l = r.results[0].geometry.location;
   return {lat:l.lat(), lng:l.lng()};
@@ -1218,24 +1392,24 @@ async function calcTravel(c){
     say("loading…"); await loadMaps(key);
     if(!c.lat || !c.lon){
       if(!c.address) throw new Error("give the flat an address first");
-      say("geocoding…"); const city = (S.params.city||"").trim();
+      say("geocoding…"); const city = (P().city||"").trim();
       const needsCity = city && !new RegExp(city.slice(0,4),"i").test(c.address);
       const g = await geocode(c.address + (needsCity ? ", "+city : ""));
       c.lat = g.lat; c.lon = g.lng; touch(c); save();
     }
     c.travel = c.travel || {};
     const fails = [];
-    for(const p of S.places){
+    for(const p of livePlaces()){
       if(!p.lat || !p.lon){
         if(!p.address){ fails.push(p.name+": no address"); continue; }
         const g = await geocode(p.address); p.lat = g.lat; p.lon = g.lng;
-        touchSettings(); save();
+        await savePlace(p);
       }
-      c.travel[p.id] = c.travel[p.id] || {};
+      c.travel[p.key] = c.travel[p.key] || {};
       for(const m of p.modes){
         say(p.name+" · "+MODES[m.mode]+"…");
         try{
-          c.travel[p.id][m.mode] = await minutesBetween(
+          c.travel[p.key][m.mode] = await minutesBetween(
             {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode, p);
           touch(c); save();
         }catch(e){ fails.push(`${p.name} by ${MODES[m.mode]}: ${e.message}`); }
@@ -1342,17 +1516,14 @@ const EXTRACTOR = `(() => {
   return JSON.stringify(out);
 })()`;
 
-/* ================================================== Firebase sync
-   users/{uid} holds one document. Merging is per candidate, not per document:
-   each candidate carries its own updatedAt, deletions leave tombstones, and
-   settings move as one block with their own stamp. That way editing flat A on
-   the laptop and flat B on the phone keeps both, instead of whichever saved
-   last erasing the other.
-
-   Nothing is ever pushed before the first remote read has been merged in.  */
+/* ================================================== auth + server state
+   Firebase is now only an identity provider: it issues the ID token the API
+   verifies. All data lives in Postgres. Local storage is a read-only mirror so
+   the page still opens and scores when the server is unreachable.          */
 const FB_VERS = ["10.14.1", "11.0.2", "10.12.5"];
-const FB = {app:null, auth:null, db:null, uid:null, unsub:null, ready:false};
-let syncTimer = null, applyingRemote = false, syncReady = false, pendingPush = false;
+const FB = {app:null, auth:null, uid:null, email:null, ready:false};
+const UI = {hiddenModes: []};
+let saveTimer = null, dirty = new Set();
 
 function fbConf(){
   const c = Object.assign({}, CFG.firebase||{});
@@ -1365,102 +1536,16 @@ function setSync(state, text){
   el.className = "sync" + (state ? " "+state : "");
   el.textContent = text;
 }
-
-/* --- stamping -------------------------------------------------------------
-   saveLocal() persists without claiming anything changed. save() means "the
-   user changed something" and schedules a push. Derived work such as drawing
-   routes must not masquerade as an edit, or simply opening the page on a
-   second device would look newer than real edits made on the first.        */
-function saveLocal(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
-function touch(c){ if(c && !applyingRemote) c.updatedAt = Date.now(); }
-function touchSettings(){ if(!applyingRemote) S.settingsAt = Date.now(); }
-function tombstone(id){
-  S.tombstones = S.tombstones || {};
-  S.tombstones[id] = Date.now();
+function uiWrite(){
+  try{ localStorage.setItem("ah-ui", JSON.stringify(UI)); }catch(e){}
 }
-
-/* --- merge ---------------------------------------------------------------- */
-function mergeRemote(remote){
-  applyingRemote = true;
-  const rDocT = Number(remote.updatedAt || 0);
-
-  // candidates: union by id, newest wins
-  const byId = new Map();
-  for(const c of (S.candidates||[])) byId.set(c.id, c);
-  for(const rc of (remote.candidates||[])){
-    const local = byId.get(rc.id);
-    const rt = Number(rc.updatedAt || rDocT || 0);
-    const lt = Number(local?.updatedAt || 0);
-    if(!local || rt > lt) byId.set(rc.id, rc);
-  }
-
-  // tombstones: keep the latest deletion time per id, then apply
-  const tomb = {};
-  for(const src of [remote.tombstones||{}, S.tombstones||{}])
-    for(const [id, t] of Object.entries(src))
-      tomb[id] = Math.max(Number(t)||0, Number(tomb[id]||0));
-  for(const [id, t] of Object.entries(tomb)){
-    const c = byId.get(id);
-    // a delete only wins over an edit that happened before it
-    if(c && Number(t) >= Number(c.updatedAt || 0)) byId.delete(id);
-  }
-  // forget tombstones older than 60 days so the document does not grow forever
-  const cutoff = Date.now() - 60*24*3600*1000;
-  for(const [id, t] of Object.entries(tomb)) if(Number(t) < cutoff) delete tomb[id];
-
-  S.candidates = [...byId.values()];
-  S.tombstones = tomb;
-
-  // settings travel as one block
-  if(Number(remote.settingsAt || 0) > Number(S.settingsAt || 0)){
-    if(remote.params)  S.params  = Object.assign({}, DEFAULT_PARAMS,  remote.params);
-    if(remote.weights) S.weights = Object.assign({}, DEFAULT_WEIGHTS, remote.weights);
-    if(remote.places)  S.places  = remote.places;
-    if(remote.ui)      S.ui      = remote.ui;
-    S.settingsAt = Number(remote.settingsAt);
-  }
-
-  if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
-  saveLocal();
-  applyingRemote = false;
+function uiRead(){
+  try{ Object.assign(UI, JSON.parse(localStorage.getItem("ah-ui")||"{}")); }catch(e){}
 }
-
-function stateHash(){
-  return JSON.stringify([S.candidates.map(c=>[c.id, c.updatedAt||0]),
-                         S.settingsAt||0, Object.entries(S.tombstones||{})]);
-}
-let lastPushedHash = null;
-
-async function pushRemote(){
-  if(!FB.ready || !FB.uid || !syncReady) return;
-  const {fs} = FB.mods;
-  const payload = {
-    params:S.params, weights:S.weights, places:S.places, ui:S.ui||{},
-    candidates:S.candidates, tombstones:S.tombstones||{},
-    settingsAt: S.settingsAt || 0,
-    updatedAt: Date.now(), schema: SCHEMA
-  };
-  await fs.setDoc(fs.doc(FB.db, "users", FB.uid), payload);
-  lastPushedHash = stateHash();
-}
-function queueSync(){
-  if(!FB.ready || !FB.uid || applyingRemote) return;
-  if(!syncReady){ pendingPush = true; return; }   // wait for the first read
-  setSync("busy","saving…");
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(async ()=>{
-    try{ await pushRemote(); setSync("ok","synced"); }
-    catch(e){ console.error(e); setSync("err","save failed"); }
-  }, 1200);
-}
-/* A user edit stamps nothing by itself — call touch(candidate) or
-   touchSettings() at the edit site — but it does schedule a push. */
-const _save = save;
-save = function(){ _save(); queueSync(); };
 
 async function initFirebase(){
   const conf = fbConf();
-  if(!conf){ setSync("", "local only"); return; }
+  if(!conf){ setSync("", "no sign-in configured"); return; }
   try{
     setSync("busy","connecting…");
     let mods = null, lastErr = null;
@@ -1468,62 +1553,171 @@ async function initFirebase(){
       try{
         mods = await Promise.all([
           import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`),
-          import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`),
-          import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`)
+          import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`)
         ]);
         break;
       }catch(e){ lastErr = e; console.warn("Firebase SDK "+v+" unavailable", e); }
     }
-    if(!mods) throw new Error("could not load the Firebase SDK from gstatic — "+
-      (lastErr?.message||"unknown error"));
-    const [{initializeApp}, authMod, fsMod] = mods;
-    FB.app  = initializeApp(conf);
+    if(!mods) throw new Error("could not load the Firebase SDK — "+(lastErr?.message||""));
+    const [{initializeApp}, authMod] = mods;
+    FB.app = initializeApp(conf);
     FB.auth = authMod.getAuth(FB.app);
-    FB.db   = fsMod.getFirestore(FB.app);
-    FB.mods = {auth:authMod, fs:fsMod};
+    FB.mods = {auth: authMod};
     FB.ready = true;
-    authMod.onAuthStateChanged(FB.auth, u => onAuth(u));
-  }catch(e){
-    console.error(e); setSync("err","sync unavailable");
-  }
+    authMod.onAuthStateChanged(FB.auth, onAuth);
+  }catch(e){ console.error(e); setSync("err","sign-in unavailable"); }
 }
 
 async function onAuth(u){
-  const {fs} = FB.mods;
-  if(FB.unsub){ FB.unsub(); FB.unsub = null; }
-  syncReady = false; pendingPush = false;
-  if(!u){ FB.uid = null; FB.email = null; setSync("","not signed in");
-    $("#bAcct").textContent = "Sign in"; initMap(); return; }
-  FB.uid = u.uid; FB.email = u.email || "";
-  initMap();
-  $("#bAcct").textContent = (u.displayName||u.email||"Account").split(" ")[0];
-  setSync("busy","reading…");
-  const ref = fs.doc(FB.db, "users", u.uid);
-  try{
-    // 1. read remote and merge it into what is here, before anything goes up
-    const snap = await fs.getDoc(ref);
-    if(snap.exists() && snap.data()) mergeRemote(snap.data());
-    syncReady = true;
-    render();
-
-    // 2. now it is safe to write the merged result back
-    setSync("busy","saving…");
-    await pushRemote();
-    setSync("ok","synced");
-    pendingPush = false;
-
-    // 3. stay live
-    FB.unsub = fs.onSnapshot(ref, s => {
-      if(!s.exists() || !s.data() || applyingRemote) return;
-      const before = stateHash();
-      mergeRemote(s.data());
-      if(stateHash() !== before){ render(); setSync("ok","synced"); }
-    }, err => { console.error(err); setSync("err","sync error"); });
-  }catch(e){
-    console.error(e);
-    syncReady = false;
-    setSync("err", /permission/i.test(e.message) ? "rules deny access" : "sync error");
+  if(!u){
+    FB.uid = null; FB.email = null; ONLINE = false; READONLY = true;
+    $("#bAcct").textContent = "Sign in";
+    setSync("", "not signed in");
+    initMap(); render();
+    return;
   }
+  FB.uid = u.uid; FB.email = u.email || "";
+  $("#bAcct").textContent = (u.displayName||u.email||"Account").split(" ")[0];
+  await pullAll();
+  initMap();
+}
+
+/* --- API ----------------------------------------------------------------- */
+const API = (CFG.apiBase || "").replace(/\/$/, "");
+async function idToken(){
+  if(!FB.ready || !FB.uid) return null;
+  try{ return await FB.auth.currentUser.getIdToken(); }catch(e){ return null; }
+}
+async function api(path, opts = {}){
+  if(!API) throw new Error("no server configured — set apiBase in config.js");
+  const tok = await idToken();
+  if(!tok) throw new Error("sign in first");
+  const r = await fetch(API + path, Object.assign({}, opts, {
+    headers: Object.assign({"Content-Type":"application/json",
+                            "Authorization":"Bearer " + tok}, opts.headers||{})
+  }));
+  let body = null;
+  try{ body = await r.json(); }catch(e){}
+  if(!r.ok){
+    const d = body?.detail;
+    const err = new Error(typeof d === "string" ? d : (d?.reason || `${r.status} ${r.statusText}`));
+    err.status = r.status; err.body = body;
+    throw err;
+  }
+  return body;
+}
+const apiSchema = (method, path, body) =>
+  api(path, {method, body: body === undefined ? undefined : JSON.stringify(body)});
+
+async function loadSchema(){
+  const d = await api("/api/schema");
+  SCHEMA.categories = d.categories || [];
+  SCHEMA.criteria   = d.criteria || [];
+  SCHEMA.places     = d.places || [];
+  SCHEMA.settings   = Object.assign({}, FALLBACK_SETTINGS, d.settings || {});
+  return d;
+}
+async function putSettings(patch){
+  Object.assign(SCHEMA.settings, patch);
+  try{
+    SCHEMA.settings = Object.assign({}, FALLBACK_SETTINGS,
+      await apiSchema("PUT", "/api/admin/settings", patch));
+  }catch(e){ console.warn("settings not saved", e); }
+  cacheWrite(); MAP.routeSig = null; render();
+}
+
+/* Server rows use `answers`; the page also keeps address/link/notes at the top
+   level because the map, the list and the print sheet all reach for them. */
+function fromRow(r){
+  return {id:r.ext_id, address:r.address, link:r.link, notes:r.notes,
+          lat:r.lat, lon:r.lon, photos:r.photos||[], answers:r.answers||{},
+          travel:r.travel||{}, scrape:r.scrape||null,
+          status_override:r.status_override||"", archived:!!r.archived,
+          updatedAt:r.client_updated_at||0};
+}
+function toRow(c){
+  const a = Object.assign({}, c.answers||{});
+  if(c.address!=null) a.address = c.address;
+  if(c.link!=null) a.link = c.link;
+  if(c.notes!=null) a.notes = c.notes;
+  return {ext_id:c.id, address:c.address||null, link:c.link||null, notes:c.notes||null,
+          lat:c.lat??null, lon:c.lon??null, photos:c.photos||[], answers:a,
+          travel:c.travel||{}, scrape:c.scrape||null,
+          status_override:c.status_override||null, archived:!!c.archived,
+          client_updated_at:c.updatedAt||Date.now()};
+}
+
+async function pullAll(){
+  setSync("busy","loading…");
+  try{
+    await loadSchema();
+    const d = await api("/api/candidates");
+    S.candidates = (d.candidates||[]).map(fromRow);
+    if(!S.candidates.find(c=>c.id===selId)) selId = S.candidates[0]?.id ?? null;
+    ONLINE = true; READONLY = false;
+    cacheWrite();
+    setSync("ok","synced");
+  }catch(e){
+    ONLINE = false; READONLY = true;
+    const cached = cacheRead();
+    setSync("err", e.status === 403 ? "not allowed" : cached ? "offline — cached" : "offline");
+    console.warn("pull failed", e);
+  }
+  render();
+}
+
+/* --- writes -------------------------------------------------------------- */
+function touch(c){ if(c) c.updatedAt = Date.now(); }
+function save(){
+  cacheWrite();
+  if(READONLY){ setSync("err","read-only — server unreachable"); return; }
+  const c = S.candidates.find(x=>x.id===selId);
+  if(c) dirty.add(c.id);
+  setSync("busy","saving…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 900);
+}
+function saveLocal(){ cacheWrite(); }
+async function saveNow(c){
+  if(!c) return;
+  dirty.add(c.id);
+  await flush();
+}
+async function flush(){
+  if(READONLY || !dirty.size) return;
+  const ids = [...dirty]; dirty.clear();
+  try{
+    for(const id of ids){
+      const c = S.candidates.find(x=>x.id===id);
+      if(!c) continue;
+      await api("/api/candidates/"+encodeURIComponent(id),
+                {method:"PUT", body: JSON.stringify(toRow(c))});
+    }
+    cacheWrite();
+    setSync("ok","synced");
+  }catch(e){
+    if(e.status === 409 && e.body?.detail?.current){
+      // Somebody else saved a newer version of this flat. Take theirs rather
+      // than overwrite it, and say so — silently losing an edit is worse.
+      const row = fromRow(e.body.detail.current);
+      const i = S.candidates.findIndex(x=>x.id===row.id);
+      if(i >= 0) S.candidates[i] = row;
+      cacheWrite(); render();
+      setSync("err","newer version on the server — reloaded");
+      return;
+    }
+    ids.forEach(i=>dirty.add(i));
+    setSync("err","save failed");
+    console.error(e);
+  }
+}
+
+async function removeCandidate(c){
+  S.candidates = S.candidates.filter(x=>x.id!==c.id);
+  selId = S.candidates[0]?.id ?? null;
+  cacheWrite(); render();
+  try{ await api("/api/candidates/"+encodeURIComponent(c.id), {method:"DELETE"}); }
+  catch(e){ setSync("err","delete failed"); console.error(e); }
 }
 
 $("#bAcct").onclick = async () => {
@@ -1532,30 +1726,26 @@ $("#bAcct").onclick = async () => {
   if(!FB.ready) return setupDialog();
   const {auth} = FB.mods;
   if(FB.uid){
-    dialog("Account", `<div class="note">Signed in. Data lives in Firestore under your
-      account and syncs to any browser you sign in from.</div>`,
-      [{label:"Close"},{label:"Sign out", act:()=>auth.signOut(FB.auth)}]);
+    dialog("Account", `<div class="note">Signed in as <b>${esc(FB.email||"")}</b>.
+      Everything is stored on your server, keyed to this account.</div>`,
+      [{label:"Close"},{label:"Reload from server", act: pullAll},
+       {label:"Sign out", act:()=>auth.signOut(FB.auth)}]);
     return;
   }
-  try{
-    const p = new auth.GoogleAuthProvider();
-    await auth.signInWithPopup(FB.auth, p);
-  }catch(e){
+  try{ await auth.signInWithPopup(FB.auth, new auth.GoogleAuthProvider()); }
+  catch(e){
     alert("Sign-in failed:\n\n" + e.message +
-      "\n\nCheck that Google is enabled under Authentication → Sign-in method, and that this " +
-      "domain is listed under Authentication → Settings → Authorized domains.");
+      "\n\nCheck Google is enabled under Authentication → Sign-in method, and that " +
+      "this domain is in Authentication → Settings → Authorized domains.");
   }
 };
+
 function setupDialog(){
   const c = fbConf() || CFG.firebase || {};
   dialog("Keys", `
-    <div class="note">Stored in this browser only, never written into the page — so nothing
-    ends up in the repo. You will enter them once per device. Copy
-    <code>config.example.js</code> to <code>config.js</code> if you would rather set them
-    per checkout; that file is gitignored.</div>
-    <div class="note warn">These reach the browser at runtime either way, so they are not
-    really secret. What protects you is <code>firestore.rules</code> and the Maps key's
-    referrer restriction.</div>
+    <div class="note">Stored in this browser only. The ScrapingBee and Anthropic
+    keys are not here at all — they live in the server's .env and never reach a
+    browser.</div>
     <div class="f"><label>Firebase apiKey</label><input id="cKey" value="${esc(c.apiKey||"")}"></div>
     <div class="f" style="margin-top:8px"><label>Firebase appId</label>
       <input id="cApp" value="${esc(c.appId||"")}" placeholder="1:1085228370812:web:…"></div>
@@ -1567,11 +1757,10 @@ function setupDialog(){
       const mk = $("#cMaps").value.trim();
       try{ if(mk) localStorage.setItem(GKEY, mk); }catch(e){}
       const proj = $("#cProj").value.trim();
-      const conf = {apiKey:$("#cKey").value.trim(), appId:$("#cApp").value.trim(),
-        projectId:proj,
+      try{ localStorage.setItem("ah-firebase", JSON.stringify({
+        apiKey:$("#cKey").value.trim(), appId:$("#cApp").value.trim(), projectId:proj,
         authDomain:(c.authDomain)||(proj+".firebaseapp.com"),
-        storageBucket:c.storageBucket||"", messagingSenderId:c.messagingSenderId||""};
-      try{ localStorage.setItem("ah-firebase", JSON.stringify(conf)); }catch(e){}
+        storageBucket:c.storageBucket||"", messagingSenderId:c.messagingSenderId||""})); }catch(e){}
       FB.ready = false; MAP.routeSig = null; MAP.ready = false;
       mapsLoading = null; mapsAuthFailed = false;
       initFirebase(); initMap(); render();
@@ -1611,7 +1800,7 @@ const MAP_STYLE = [
    rather than "now" — otherwise a score quietly changes at rush hour. Google
    also rejects transit requests with a departure time in the past. */
 function departAt(place){
-  const hour = Number(place?.departHour ?? S.params.departHour ?? 10);
+  const hour = Number(place?.departHour ?? P().departHour ?? 10);
   const d = new Date();
   d.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
   if(d <= new Date()) d.setDate(d.getDate() + 1);
@@ -1672,7 +1861,7 @@ async function syncPins(){
   const bounds = new google.maps.LatLngBounds();
   let any = false;
 
-  for(const p of S.places){
+  for(const p of livePlaces()){
     if(!p.lat || !p.lon) continue;
     any = true;
     const pos = {lat:p.lat, lng:p.lon};
@@ -1725,8 +1914,8 @@ async function focusCandidate(c, animate = true){
 
   // geoSig keys the cache (what a route *is*); sig also covers the display
   // filter, so toggling Bike/Transit redraws from cache without re-billing.
-  const geoSig = [c.id, c.lat, c.lon, S.params.departHour,
-    S.places.map(p=>[p.id,p.lat,p.lon,p.departHour,p.modes.map(m=>m.mode).join("/")].join(","))
+  const geoSig = [c.id, c.lat, c.lon, P().departHour,
+    livePlaces().map(p=>[p.key,p.lat,p.lon,p.departHour,(p.modes||[]).map(m=>m.mode).join("/")].join(","))
       .join(";")].join("|");
   const sig = geoSig + "||" + shownModes().join("+");
   if(sig === MAP.routeSig) return;                    // already on screen
@@ -1738,10 +1927,10 @@ async function focusCandidate(c, animate = true){
     const svc = new DirectionsService();
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(here);
-    for(const p of S.places){
+    for(const p of livePlaces()){
       if(!p.lat || !p.lon) continue;
       bounds.extend({lat:p.lat, lng:p.lon});
-      for(const m of p.modes){
+      for(const m of (p.modes||[])){
         if(!modeShown(m.mode)) continue;      // display filter — scoring is unaffected
         try{
           // Every route is a billed request, and flipping between two flats used
@@ -1765,7 +1954,7 @@ async function focusCandidate(c, animate = true){
           if(leg?.duration?.value){
             const mins = Math.round(leg.duration.value/60);
             c.travel = c.travel||{}; c.travel[p.id] = c.travel[p.id]||{};
-            if(c.travel[p.id][m.mode] !== mins){ c.travel[p.id][m.mode] = mins; touch(c); }
+            if(c.travel[p.key][m.mode] !== mins){ c.travel[p.key][m.mode] = mins; touch(c); }
             const path = res.routes[0].overview_path || [];
             const mid = path[Math.floor(path.length/2)];
             if(mid) MAP.labels.push(new google.maps.Marker({
@@ -1797,21 +1986,19 @@ async function focusCandidate(c, animate = true){
 
 /* Which modes get drawn. Purely a display filter — hiding transit does not
    change any score, the stored minutes are still counted. */
-function availableModes(){ return [...new Set(S.places.flatMap(p=>p.modes.map(m=>m.mode)))]; }
+function availableModes(){ return [...new Set(livePlaces().flatMap(p=>(p.modes||[]).map(m=>m.mode)))]; }
 function shownModes(){
   const avail = availableModes();
-  const hidden = S.ui?.hiddenModes || [];
+  const hidden = UI.hiddenModes || [];
   const on = avail.filter(m=>!hidden.includes(m));
   return on.length ? on : avail;      // never hide everything
 }
 const modeShown = m => shownModes().includes(m);
 function toggleMode(m){
-  S.ui = S.ui || {};
-  const hidden = new Set(S.ui.hiddenModes || []);
+  const hidden = new Set(UI.hiddenModes || []);
   hidden.has(m) ? hidden.delete(m) : hidden.add(m);
   if(hidden.size >= availableModes().length) hidden.delete(m);   // keep one on
-  S.ui.hiddenModes = [...hidden];
-  touchSettings(); save();
+  UI.hiddenModes = [...hidden]; uiWrite();
   MAP.routeSig = null;
   const c = S.candidates.find(x=>x.id===selId);
   if(c && MAP.ready) focusCandidate(c, false);
@@ -1832,7 +2019,7 @@ function renderLegend(){
     `<span><span class="dot" style="background:#25406e"></span>places</span>` +
     `<span><span class="dot" style="background:#63be7b"></span>candidates by match</span>` +
     `<span>leaving at <select id="departSel">${hours.map(h=>
-      `<option value="${h}" ${Number(S.params.departHour)===h?"selected":""}>${
+      `<option value="${h}" ${Number(P().departHour)===h?"selected":""}>${
         String(Math.floor(h)).padStart(2,"0")}:${h%1?"30":"00"}</option>`).join("")}</select></span>` +
     (c ? `<span class="sel">${esc(c.address||"—")}</span>` : "");
   el.querySelectorAll(".modechk").forEach(lb=>{
@@ -1840,7 +2027,7 @@ function renderLegend(){
   });
   const sel = $("#departSel");
   if(sel) sel.onchange = () => {
-    S.params.departHour = Number(sel.value); touchSettings(); save();
+    P().departHour = Number(sel.value); putSettings({departHour:P().departHour});
     MAP.routeSig = null;
     const cur = S.candidates.find(x=>x.id===selId);
     if(cur) focusCandidate(cur);
@@ -1851,25 +2038,7 @@ function renderLegend(){
    The API holds the ScrapingBee and Anthropic keys; this page never sees them.
    Jobs run server-side and are polled, so you can keep browsing and editing
    other candidates while one is in flight.                                  */
-const API = (CFG.apiBase || "").replace(/\/$/, "");
-const SB = {jobs:new Map(), timer:null};
-
-async function idToken(){
-  if(!FB.ready || !FB.uid) return null;
-  try{ return await FB.auth.currentUser.getIdToken(); }catch(e){ return null; }
-}
-async function api(path, opts = {}){
-  const tok = await idToken();
-  if(!tok) throw new Error("sign in first — the scraper is behind your Google account");
-  const r = await fetch(API + path, Object.assign({}, opts, {
-    headers: Object.assign({"Content-Type":"application/json",
-                            "Authorization":"Bearer " + tok}, opts.headers||{})
-  }));
-  let body = null;
-  try{ body = await r.json(); }catch(e){}
-  if(!r.ok) throw new Error(body?.detail || `${r.status} ${r.statusText}`);
-  return body;
-}
+const SB = {jobs:new Map(), timer:null};   // api() and idToken() live in the sync layer
 
 $("#bScrape").onclick = async () => {
   const url = $("#sbUrl").value.trim();
@@ -1914,27 +2083,48 @@ async function pollJobs(){
 }
 
 function renderJobs(){
-  const host = $("#sbJobs"); if(!host) return;
-  const list = [...SB.jobs.values()].slice(-4);
+  const host = $("#sbJobs"), panel = $("#sbPanel");
+  if(!host || !panel) return;
+  const list = [...SB.jobs.values()].reverse();
+  panel.style.display = list.length ? "" : "none";
+  const live = list.filter(j=>j.stage!=="done" && j.stage!=="error").length;
+  $("#sbCount").textContent = live ? `${live} running` : `${list.length} done`;
+
   host.innerHTML = list.map(j=>{
-    const err = j.stage === "error";
-    const steps = (j.stages||[]).filter(s=>s.key!=="queued").map(s=>{
-      const cur = s.key === j.stage;
-      const done = (j.progress||0) > s.at;
-      return `<span class="${cur?"on":done?"did":""}">${esc(s.label)}</span>`;
+    const err = j.stage === "error", ok = j.stage === "done";
+    const cand = S.candidates.find(c=>c.id===j.cand);
+    const name = cand?.address || j.url;
+    const steps = ok || err ? "" : (j.stages||[]).filter(s=>s.key!=="queued").map(s=>{
+      const cur = s.key === j.stage, did = (j.progress||0) > s.at;
+      return `<span class="${cur?"on":did?"did":""}">${esc(s.label)}</span>`;
     }).join("");
-    return `<div class="sbjob">
+    return `<div class="sbjob ${ok?"ok":err?"bad":""}" data-cand="${esc(j.cand||"")}">
       <div class="top">
-        <span class="st">${err ? "Failed" : esc(j.stage_label||"…")}</span>
-        <span class="u">${esc(j.url)}</span>
-        <span class="pct">${err ? "" : (j.progress||0)+"%"}</span>
+        <span class="dotstate ${ok?"ok":err?"bad":"run"}"></span>
+        <span class="u" title="${esc(j.url)}">${esc(name)}</span>
+        <span class="pct">${err ? "failed" : ok ? "✓" : (j.progress||0)+"%"}</span>
       </div>
-      <div class="sbbar ${err?"err":""}"><i style="width:${err?100:(j.progress||0)}%"></i></div>
-      ${err ? `<div class="tiny" style="margin-top:6px;color:var(--bad)">${esc(j.error||"")}</div>`
-            : `<div class="sbsteps">${steps}</div>`}
+      ${ok ? `<div class="tiny" style="margin-top:4px">${
+                (j.result ? Object.values(j.result).filter(v=>v.value!=null).length : 0)
+              } fields · ${(j.missing||[]).length} blank</div>`
+           : err ? `<div class="tiny" style="margin-top:4px;color:var(--bad)">${esc(j.error||"")}</div>`
+           : `<div class="sbbar"><i style="width:${j.progress||0}%"></i></div>
+              <div class="st">${esc(j.stage_label||"…")}</div>
+              <div class="sbsteps">${steps}</div>`}
     </div>`;
   }).join("");
+
+  host.querySelectorAll(".sbjob[data-cand]").forEach(el=>{
+    el.onclick = () => {
+      const id = el.dataset.cand;
+      if(id && S.candidates.find(c=>c.id===id)){ selId = id; render(); }
+    };
+  });
 }
+$("#sbClear").onclick = () => {
+  for(const [k,j] of [...SB.jobs]) if(j.stage==="done"||j.stage==="error") SB.jobs.delete(k);
+  renderJobs();
+};
 
 /* Write the reconciled answer onto the candidate, then say what is missing. */
 function applyScrape(job, s){
@@ -1960,10 +2150,14 @@ function applyScrape(job, s){
   if(MAP.ready) syncPins();
   render();
   showScrapeReport(c, s, filled, skipped);
+  // Press Calculate for you: geocodes the address if the listing gave no
+  // coordinates, then measures every place and mode. Fire and forget — it
+  // reports its own failures and must not block the report dialog.
+  if(mapsAllowed()) calcTravel(c).catch(e=>console.warn("auto-calculate failed", e));
 }
 
 function showScrapeReport(c, s, filled, skipped){
-  const label = k => (GROUPS.flatMap(g=>g.fields).find(f=>f.k===k)?.l) || k;
+  const label = labelOf;
   const res = s.result || {};
   const confChip = v => {
     const n = v.confidence;
@@ -2012,21 +2206,17 @@ function showScrapeReport(c, s, filled, skipped){
 /* ================================================================ boot */
 $("#lb").onclick = () => { $("#lb").style.display = "none"; };
 $("#sortBy").onchange = renderList;
-document.addEventListener("keydown", e => { if(e.key==="Escape") $("#lb").style.display="none"; });
-if(S.migrated){
-  const b = document.createElement("div");
-  b.className = "note"; b.style.cssText = "margin:10px 14px 0";
-  b.innerHTML = esc(S.migrated) + ` <button class="btn sm" style="margin-left:8px">Got it</button>`;
-  b.querySelector("button").onclick = () => { delete S.migrated; save(); b.remove(); };
-  document.body.insertBefore(b, $(".wrap")); save();
-}
+$("#bAdmin").onclick = () => openAdmin();
 $("#bKeys").onclick = setupDialog;
-$("#tagline").textContent = fbConf()
-  ? "Signed-in data syncs across your devices."
-  : "Saved in this browser — connect Firebase or use Export/Import to sync.";
+document.addEventListener("keydown", e => { if(e.key==="Escape") $("#lb").style.display="none"; });
+
+uiRead();
+cacheRead();                 // show something instantly, before the network settles
+$("#tagline").textContent = API
+  ? "Criteria and candidates live on your server."
+  : "No server configured — set apiBase in config.js.";
 render();
 initFirebase();
-initMap();
 </script>
 </body>
 </html>

@@ -35,11 +35,11 @@ SYSTEM = (
 )
 
 
-def _tool(keys, name, desc):
+def _tool(ls, keys, name, desc):
     return {
         "name": name,
         "description": desc,
-        "input_schema": schema.json_schema(keys, with_confidence=True),
+        "input_schema": ls.json_schema(keys, with_confidence=True),
     }
 
 
@@ -58,9 +58,9 @@ async def _call(client, model, tool, blocks, max_tokens=4096):
     raise RuntimeError("model did not return the structured result")
 
 
-async def pass_text(client, model, listing: dict) -> tuple[dict, object]:
-    keys = [f["key"] for f in schema.FIELDS]
-    tool = _tool(keys, "record_listing_facts",
+async def pass_text(client, model, listing: dict, ls) -> tuple[dict, object]:
+    keys = ls.all_keys
+    tool = _tool(ls, keys, "record_listing_facts",
                  "Record what the listing text states about the flat.")
     meta = json.dumps(listing.get("meta") or {}, ensure_ascii=False, indent=1)[:4000]
     prompt = (
@@ -71,14 +71,14 @@ async def pass_text(client, model, listing: dict) -> tuple[dict, object]:
         "Fill in every field from the text and structured fields above. You are working "
         "from words only — no photographs. For anything the text does not support, return "
         "null with confidence 0.\n\n"
-        f"Field notes:\n{schema.field_spec(keys)}"
+        f"Field notes:\n{ls.spec(keys)}"
     )
     return await _call(client, model, tool, [{"type": "text", "text": prompt}])
 
 
-async def pass_photos(client, model, photos: list[dict], listing: dict) -> tuple[dict, object]:
-    keys = schema.PHOTO_FIELDS
-    tool = _tool(keys, "record_photo_findings",
+async def pass_photos(client, model, photos: list[dict], listing: dict, ls) -> tuple[dict, object]:
+    keys = ls.photo_keys
+    tool = _tool(ls, keys, "record_photo_findings",
                  "Record only what is visible in the photographs.")
     blocks = []
     for i, p in enumerate(photos, 1):
@@ -99,15 +99,15 @@ async def pass_photos(client, model, photos: list[dict], listing: dict) -> tuple
         "stained corners; window frames and whether they look recent; a bathtub as opposed "
         "to only a shower; wardrobes or built-in storage; a balcony; the general age and "
         "condition of the building and finishes.\n\n"
-        f"Field notes:\n{schema.field_spec(keys)}"
+        f"Field notes:\n{ls.spec(keys)}"
     )})
     return await _call(client, model, tool, blocks)
 
 
 async def pass_reconcile(client, model, text_res: dict, photo_res: dict,
-                         listing: dict) -> tuple[dict, object]:
-    keys = [f["key"] for f in schema.FIELDS]
-    tool = _tool(keys, "record_final_answer",
+                         listing: dict, ls) -> tuple[dict, object]:
+    keys = ls.all_keys
+    tool = _tool(ls, keys, "record_final_answer",
                  "The final value for each field, having weighed text against photos.")
 
     def brief(d):
@@ -131,24 +131,24 @@ async def pass_reconcile(client, model, text_res: dict, photo_res: dict,
         "more conservative value and say so in the evidence.\n"
         "· A field null in both stays null. Do not fill gaps by reasoning about what is "
         "likely — the tenant would rather see a blank and go and look.\n\n"
-        f"Field notes:\n{schema.field_spec(keys)}"
+        f"Field notes:\n{ls.spec(keys)}"
     )
     return await _call(client, model, tool, [{"type": "text", "text": prompt}], max_tokens=6000)
 
 
-def tidy(raw: dict) -> dict:
+def tidy(raw: dict, ls) -> dict:
     """Validate and flatten {key: {value, confidence, evidence}} for the browser."""
     out = {}
     for k, v in (raw or {}).items():
-        if k not in schema.BY_KEY:
+        if k not in ls.by_key:
             continue
         if isinstance(v, dict):
-            val = schema.coerce(k, v.get("value"))
+            val = ls.coerce(k, v.get("value"))
             out[k] = {"value": val,
                       "confidence": None if val is None else v.get("confidence"),
                       "evidence": None if val is None else (v.get("evidence") or None)}
         else:
-            val = schema.coerce(k, v)
+            val = ls.coerce(k, v)
             out[k] = {"value": val, "confidence": None, "evidence": None}
     return out
 

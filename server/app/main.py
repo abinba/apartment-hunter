@@ -18,12 +18,18 @@ import uuid
 from collections import defaultdict
 
 from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, HttpUrl
 
 from .analyze import client_for, pass_photos, pass_reconcile, pass_text, tidy, usage_sum
 from .auth import require_user
 from .config import Config
+from .db import SessionLocal, engine
+from .models import Criterion
+from .schema import LiveSchema, fields_from_db
+from .routes_data import router as data_router
+from .routes_schema import router as schema_router
 from .scrape import download_photos, fetch_html, parse_listing
 
 logging.basicConfig(level=logging.INFO,
@@ -33,11 +39,16 @@ log = logging.getLogger("main")
 app = FastAPI(title="Apartment Hunter scraper", docs_url=None, redoc_url=None)
 app.state.cfg = Config()
 
+app.include_router(schema_router)
+app.include_router(data_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=app.state.cfg.cors_origins or ["http://localhost:8000"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # PATCH/PUT/DELETE are needed by the admin panel; without them the
+    # browser blocks every edit at the preflight.
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -80,8 +91,18 @@ def _sweep():
         JOBS.pop(k, None)
 
 
-async def run_job(job_id: str, url: str, cfg: Config):
+async def run_job(job_id: str, url: str, cfg: Config, uid: str):
     try:
+        # The field list comes from this user's criteria, so anything added in
+        # the admin panel is extracted from the very next listing — no deploy,
+        # no code change. Falls back to the built-in list if the DB is empty.
+        async with SessionLocal() as s:
+            crits = (await s.execute(
+                select(Criterion).where(Criterion.uid == uid))).scalars().all()
+        ls = LiveSchema(fields_from_db(crits) or None)
+        log.info("job %s scraping %d fields (%d photo-capable)",
+                 job_id, len(ls.all_keys), len(ls.photo_keys))
+
         _set(job_id, "fetching")
         html = await fetch_html(url, cfg.scrapingbee_key)
 
@@ -94,17 +115,18 @@ async def run_job(job_id: str, url: str, cfg: Config):
 
         client = client_for(cfg.anthropic_key)
 
-        text_raw, u1 = await pass_text(client, cfg.model, listing)
-        _set(job_id, "photo_pass", text_result=tidy(text_raw))
+        text_raw, u1 = await pass_text(client, cfg.model, listing, ls)
+        _set(job_id, "photo_pass", text_result=tidy(text_raw, ls))
 
         if photos:
-            photo_raw, u2 = await pass_photos(client, cfg.model, photos, listing)
+            photo_raw, u2 = await pass_photos(client, cfg.model, photos, listing, ls)
         else:
             photo_raw, u2 = {}, None
-        _set(job_id, "reconcile", photo_result=tidy(photo_raw))
+        _set(job_id, "reconcile", photo_result=tidy(photo_raw, ls))
 
-        final_raw, u3 = await pass_reconcile(client, cfg.model, text_raw, photo_raw, listing)
-        final = tidy(final_raw)
+        final_raw, u3 = await pass_reconcile(client, cfg.model, text_raw, photo_raw,
+                                            listing, ls)
+        final = tidy(final_raw, ls)
 
         missing = sorted(k for k, v in final.items() if v.get("value") is None)
         low = sorted(k for k, v in final.items()
@@ -112,8 +134,8 @@ async def run_job(job_id: str, url: str, cfg: Config):
 
         _set(job_id, "done",
              result=final,
-             text_result=tidy(text_raw),
-             photo_result=tidy(photo_raw),
+             text_result=tidy(text_raw, ls),
+             photo_result=tidy(photo_raw, ls),
              missing=missing,
              low_confidence=low,
              listing={"title": listing.get("title"), "source": listing.get("source"),
@@ -129,7 +151,15 @@ async def run_job(job_id: str, url: str, cfg: Config):
 @app.get("/api/health")
 async def health():
     cfg = app.state.cfg
-    return {"ok": not cfg.problems(), "problems": cfg.problems(),
+    problems = cfg.problems()
+    db_ok, db_err = True, None
+    try:
+        async with SessionLocal() as s:
+            await s.execute(text("select 1"))
+    except Exception as e:  # noqa: BLE001
+        db_ok, db_err = False, str(e)[:200]
+        problems = problems + [f"database unreachable: {db_err}"]
+    return {"ok": not problems, "problems": problems, "database": db_ok,
             "model": cfg.model, "max_photos": cfg.max_photos, "jobs": len(JOBS)}
 
 
@@ -157,7 +187,7 @@ async def scrape(body: ScrapeIn, user: dict = Depends(require_user)):
                         candidate_id=body.candidate_id, stage="queued",
                         stage_label=STAGE_LABEL["queued"], progress=0,
                         created=now, updated=now)
-    asyncio.create_task(run_job(job_id, str(body.url), cfg))
+    asyncio.create_task(run_job(job_id, str(body.url), cfg, uid))
     return {"job_id": job_id, "stages": [{"key": k, "label": l, "at": p} for k, l, p in STAGES]}
 
 

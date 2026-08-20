@@ -12,14 +12,15 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini entrypoint.sh ./
 
 # Never run as root behind a public nginx.
-RUN useradd -r -u 10001 hunter && chown -R hunter /srv
+RUN useradd -r -u 10001 hunter && chmod +x entrypoint.sh && chown -R hunter /srv
 USER hunter
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8080/api/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", \
-     "--proxy-headers", "--forwarded-allow-ips", "*"]
+CMD ["./entrypoint.sh"]

@@ -196,3 +196,81 @@ def coerce(key, value):
         return str(value).strip() or None
     except (TypeError, ValueError):
         return None
+
+
+# --------------------------------------------------------------------------
+# Live schema from the database.
+#
+# FIELDS above is the fallback used when nothing has been configured. Once a
+# user has criteria in Postgres, the scraper asks about *those* — so a criterion
+# added in the admin panel is extracted from the next listing without a deploy.
+# --------------------------------------------------------------------------
+
+# Kinds the model can meaningfully answer. A calc field is derived, and a
+# textarea is free-form notes; neither belongs in an extraction schema.
+EXTRACTABLE_KINDS = {"num", "yesno", "r3", "enum", "date", "text"}
+
+
+def fields_from_db(criteria: list) -> list[dict]:
+    """Turn Criterion rows into the dicts the prompt builders expect."""
+    out = []
+    for c in criteria:
+        if c.archived or not c.scrapable:
+            continue
+        kind = c.kind
+        if kind in ("budget", "distance"):
+            kind = "num"
+        if kind not in EXTRACTABLE_KINDS:
+            continue
+        f = {"key": c.key, "kind": kind, "label": c.label}
+        if c.hint:
+            f["hint"] = c.hint
+        if kind == "enum":
+            f["options"] = [o.get("value") for o in (c.options or []) if o.get("value")]
+            if not f["options"]:
+                continue
+        f["photo"] = bool(c.photo_evidence)
+        out.append(f)
+    return out
+
+
+class LiveSchema:
+    """Per-request view of the field set, so nothing global is mutated."""
+
+    def __init__(self, fields: list[dict] | None = None):
+        self.fields = fields or FIELDS
+        self.by_key = {f["key"]: f for f in self.fields}
+        self.photo_keys = [f["key"] for f in self.fields
+                           if f.get("photo", f["key"] in PHOTO_FIELDS)]
+        self.all_keys = [f["key"] for f in self.fields]
+
+    def spec(self, keys):
+        out = []
+        for k in keys:
+            f = self.by_key[k]
+            line = f'- "{k}" ({f["kind"]}'
+            if f["kind"] == "enum":
+                line += ": one of " + " | ".join(f["options"])
+            line += f'): {f["label"]}'
+            if f.get("hint"):
+                line += f' — {f["hint"]}'
+            out.append(line)
+        return "\n".join(out)
+
+    def json_schema(self, keys, with_confidence=True):
+        saved = dict(BY_KEY)
+        try:
+            BY_KEY.update(self.by_key)
+            return json_schema(keys, with_confidence)
+        finally:
+            BY_KEY.clear()
+            BY_KEY.update(saved)
+
+    def coerce(self, key, value):
+        saved = dict(BY_KEY)
+        try:
+            BY_KEY.update(self.by_key)
+            return coerce(key, value)
+        finally:
+            BY_KEY.clear()
+            BY_KEY.update(saved)

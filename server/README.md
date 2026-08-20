@@ -106,13 +106,48 @@ There is also a per-user daily cap (`DAILY_JOB_CAP`, default 60) and a limit on
 concurrent jobs. Both are in-memory: they reset when the container restarts, and
 they are a cost guard rather than a security control.
 
+## Database
+
+Postgres runs in the compose stack, not exposed to the host. Alembic migrations
+run on every container boot — already-applied revisions are skipped, so a deploy
+is just `docker compose up -d --build`.
+
+The database is the source of truth for **categories, criteria, weights,
+thresholds, places and candidates**. Everything is scoped by Firebase `uid`;
+there is no privileged role, only your own configuration.
+
+Defaults are seeded once per user on first sign-in, matching what the browser
+used to hardcode — 6 categories, 43 criteria, 3 places, total weight 85. After
+that, `seed.py` is never consulted again; editing it will not retro-fit changes
+onto an account that already exists.
+
+`criterion.importance` (must / important / nice / none) maps to a default weight
+of 5 / 3 / 1 / 0, and `weight_override` is the escape hatch when you want an
+exact number. `candidate.answers` is jsonb because criteria are user-editable at
+runtime — a column per criterion is impossible, and a normalised value table
+would turn every read into a join. The criteria themselves are fully relational,
+which is where integrity actually matters.
+
+**Deleting is archiving.** An archived criterion disappears from the form and
+stops scoring, but every answer recorded against it stays on the candidate.
+`GET /api/admin/usage/{key}` tells you how many candidates would be affected
+before you archive. Built-in criteria can be archived but not hard-deleted.
+
 ## Endpoints
 
 | method | path | purpose |
 |---|---|---|
 | `POST` | `/api/scrape` | `{url, candidate_id?}` → `{job_id, stages[]}`; returns at once |
 | `GET` | `/api/scrape/{job_id}` | progress, then the result |
-| `GET` | `/api/health` | configuration check |
+| `GET` | `/api/health` | configuration and database check |
+| `GET` | `/api/schema` | categories, criteria, places, settings; seeds on first call |
+| `POST/PATCH/DELETE` | `/api/admin/categories[/{id}]` | delete archives the category and its criteria |
+| `POST/PATCH/DELETE` | `/api/admin/criteria[/{id}]` | `?hard=true` to really delete a non-built-in |
+| `POST/PATCH/DELETE` | `/api/admin/places[/{id}]` | |
+| `PUT` | `/api/admin/settings` | budget, thresholds, departure hour, city |
+| `GET` | `/api/admin/usage/{key}` | how many candidates use a criterion |
+| `GET/PUT/DELETE` | `/api/candidates[/{ext_id}]` | `409` with the current row on a stale write |
+| `POST` | `/api/candidates/bulk` | one-shot import from browser storage |
 
 Jobs run in the background so the page stays usable while one is in flight.
 Progress moves through `fetching → parsing → photos → text_pass → photo_pass →
