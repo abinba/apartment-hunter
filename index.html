@@ -425,6 +425,39 @@ function inputType(c){
 const labelOf = k => critByKey(k)?.label
   || (Object.values(COMPUTED).flat().find(x=>x.k===k)?.l) || k;
 
+/* Hand-written viewing questions. Deliberately kept as prose rather than
+   generated from criteria — "Czy okna wychodzą na wschód?" asks better than a
+   field label does. Criteria you add yourself are appended to the sheet
+   separately, so nothing you configure goes unasked.                        */
+const OWNER_Q = [
+  "Od kiedy mieszkanie jest dostępne? (nie później niż 1 września)",
+  "Czy jest ogrzewanie miejskie? Jaki jest średni koszt zimą?",
+  "Jaki jest średni miesięczny koszt prądu i gazu?",
+  "Jaka jest wysokość czynszu administracyjnego i co obejmuje?",
+  "Ile wynosi kaucja? Czy jest prowizja pośrednika?",
+  "Kiedy budynek był budowany / mieszkanie remontowane?",
+  "Czy lodówka, pralka i zmywarka działają poprawnie?",
+  "Piekarnik i płyta — gaz czy prąd?",
+  "Jacy dostawcy internetu są dostępni? (preferowany Play)",
+  "Czy umowa będzie standardowa czy okazjonalna?",
+  "Jakie zmiany w umeblowaniu można wprowadzać?",
+  "Czy okna wychodzą na wschód / północ?",
+  "Jakie są relacje z sąsiadami — czy są spokojni?",
+  "Czy jest miejsce na rower (piwnica, rowerownia)?"
+];
+const SELF_Q = [
+  "Czy zmieści się biurko 140×90 cm?",
+  "Czy jest miejsce na pianino 120×50 cm?",
+  "Czy jest oddzielna sypialnia?",
+  "Czy jest dużo światła dziennego?",
+  "Czy okna są nowe i dobrze izolują?",
+  "Czy nie ma wilgoci ani pleśni (rogi, łazienka, za meblami)?",
+  "Czy winda działa poprawnie?",
+  "Czy kuchnia nie jest za mała?",
+  "Czy okolica jest cicha?",
+  "Wanna / szafa / balkon?"
+];
+
 const STATUS_STYLE = {
   "Pending presentation":  ["#ffe699","#7f6000"],
   "Check availability":    ["#ffd9b3","#974706"],
@@ -832,6 +865,12 @@ function buildPrint(c){
   h += `</div></div><div class="ps-g"><h4>Rate on the spot (0–3)</h4><div class="ps-two">`;
   h += liveCriteria().filter(x=>x.kind==="r3").map(x=>x.label)
         .map(l=>`<div class="ps-q">${esc(l)} &nbsp; 0 ☐ &nbsp; 1 ☐ &nbsp; 2 ☐ &nbsp; 3 ☐</div>`).join("");
+  const custom = liveCriteria().filter(x=>x.builtin === false);
+  if(custom.length){
+    h += `</div></div><div class="ps-g"><h4>Your own criteria</h4><div class="ps-two">`;
+    h += custom.map(x=>`<div class="ps-q">☐ ${esc(x.label)}${
+      x.hint?` <span style="color:#777">— ${esc(x.hint)}</span>`:""}</div>`).join("");
+  }
   h += `</div></div><div class="ps-g"><h4>Ask the owner</h4>`;
   h += OWNER_Q.map(q=>`<div class="ps-q">☐ ${esc(q)} <span style="color:#999">
     ......................................</span></div>`).join("");
