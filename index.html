@@ -186,12 +186,8 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
 .maplegend select{border:1px solid var(--line);border-radius:7px;padding:3px 6px;background:#fff;
   font-size:11.5px}
 .cand{scroll-margin-top:80px}
-@media(max-width:900px){
-  #mapPanel{padding:0 9px;margin-top:9px}
-  #mapBox{height:280px}
-  .maplegend{font-size:11px;gap:9px}
-}
-@media print{#mapPanel{display:none !important}}
+
+
 .scrapebar{margin-top:12px;padding:12px 15px}
 .sb-row{display:flex;gap:9px;align-items:center}
 .sb-row input{flex:1;min-width:0;padding:9px 12px;border:1px solid #e2e7ee;border-radius:10px;
@@ -231,7 +227,7 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
 .conf.hi{background:#e7f4e4;color:#245b1f}
 .conf.mid{background:#fff4d9;color:#7a5a00}
 .conf.lo{background:#fdeae3;color:#8a2b00}
-@media(max-width:900px){.sb-row{flex-wrap:wrap}.sb-row input{width:100%}}
+
 
 /* admin panel */
 .tabs{display:flex;gap:4px;padding:3px;background:#f1f4f7;border-radius:10px;margin-bottom:14px}
@@ -259,17 +255,31 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   color:var(--ink)}
 .f label input[type=checkbox]{vertical-align:-1px}
 dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5px}
-@media(max-width:1240px){
-  .col-scrapes{flex:1 1 100%;position:static;order:3}
+
+@media (max-width:1240px) {
+.col-scrapes{flex:1 1 100%;position:static;order:3;min-width:0;max-width:100%}
   .col-scrapes #sbJobs{max-height:none;display:grid;
     grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
 }
-@media(max-width:900px){
-  /* ---- layout ---------------------------------------------------------- */
-  .wrap{flex-direction:column;padding:10px;gap:10px;
+
+@media (max-width:900px) {
+#mapPanel{padding:0 9px;margin-top:9px}
+  #mapBox{height:280px}
+  .maplegend{font-size:11px;gap:9px}
+
+.sb-row{flex-wrap:wrap}.sb-row input{width:100%}
+
+/* ---- layout ---------------------------------------------------------- */
+  /* align-items:flex-start on .wrap means children size to their content on
+     the cross axis. Once the container is a column, that cross axis is the
+     width — so a column without an explicit width grows to its widest row and
+     spills past the others. Stretch instead, and pin all three to 100%. */
+  .wrap{flex-direction:column;padding:10px;gap:10px;align-items:stretch;
     padding-left:max(10px,env(safe-area-inset-left));
     padding-right:max(10px,env(safe-area-inset-right))}
-  .col-list,.col-scrapes{position:static;flex:1 1 auto;width:100%}
+  .col-list,.col-scrapes,.col-form{position:static;flex:0 0 auto;
+    width:100%;max-width:100%;min-width:0}
+  .card,.sect{max-width:100%}
   .cands{max-height:none}
   .sect .body{grid-template-columns:1fr;padding:12px}
   .card{border-radius:12px}
@@ -345,8 +355,8 @@ dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5
   .tabs{position:sticky;top:0;z-index:2}
 }
 
-@media(max-width:560px){
-  .scorebox .kv{flex:1 1 calc(50% - 8px)}
+@media (max-width:560px) {
+.scorebox .kv{flex:1 1 calc(50% - 8px)}
   .kv b{font-size:14px}
   .cand .row2{gap:5px}
   .chip{font-size:10px;padding:2px 7px}
@@ -357,8 +367,10 @@ dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5
   .brand{width:26px;height:26px;font-size:12px}
 }
 
-@media print{
-  header.top,.col-list,.gal,#lb,dialog,.btn,.wrap{display:none !important}
+@media print {
+#mapPanel{display:none !important}
+
+header.top,.col-list,.gal,#lb,dialog,.btn,.wrap{display:none !important}
   body{background:#fff;font-size:11pt}
   #printSheet{display:block;padding:0}
   .ps-h{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
