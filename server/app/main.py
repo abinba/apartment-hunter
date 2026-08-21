@@ -18,7 +18,6 @@ import uuid
 from collections import defaultdict
 
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, HttpUrl
@@ -26,7 +25,8 @@ from pydantic import BaseModel, Field, HttpUrl
 from .analyze import client_for, pass_photos, pass_reconcile, pass_text, tidy, usage_sum
 from .auth import require_user
 from .config import Config
-from .db import SessionLocal, engine
+from sqlalchemy import select, text
+from .db import SessionLocal
 from .models import Criterion
 from .schema import LiveSchema, fields_from_db
 from .routes_data import router as data_router

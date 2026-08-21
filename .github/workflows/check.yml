@@ -1,0 +1,152 @@
+name: Checks
+
+# Exists because two undefined-name bugs reached production — `select` in
+# main.py and SELF_Q in index.html. Both compiled fine; Python's compileall and
+# `node --check` only verify syntax, not that names resolve. These jobs do.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: Install
+        working-directory: server
+        run: |
+          pip install -r requirements.txt
+          pip install pyflakes
+
+      - name: Undefined names and unused imports
+        working-directory: server
+        run: python -m pyflakes app migrations
+
+      - name: Every module actually imports
+        working-directory: server
+        env:
+          # Config is validated at request time, not import time, so dummy
+          # values are enough to let the modules load.
+          SCRAPINGBEE_API_KEY: dummy
+          ANTHROPIC_API_KEY: dummy
+          ALLOWED_EMAILS: ci@example.com
+          CORS_ORIGINS: http://localhost:8000
+          POSTGRES_PASSWORD: dummy
+        run: |
+          python - <<'PY'
+          import importlib, sys
+          mods = ["app.config","app.db","app.models","app.schema","app.seed","app.auth",
+                  "app.scrape","app.analyze","app.routes_schema","app.routes_data","app.main"]
+          bad = []
+          for m in mods:
+              try:
+                  importlib.import_module(m)
+                  print(f"  {m} ok")
+              except Exception as e:
+                  bad.append(f"{m}: {type(e).__name__}: {e}")
+                  print(f"  {m} FAILED: {type(e).__name__}: {e}")
+          if bad:
+              sys.exit("modules failed to import:\n  " + "\n  ".join(bad))
+          PY
+
+      - name: Routes resolve and auth is enforced
+        working-directory: server
+        env:
+          SCRAPINGBEE_API_KEY: dummy
+          ANTHROPIC_API_KEY: dummy
+          ALLOWED_EMAILS: ci@example.com
+          CORS_ORIGINS: http://localhost:8000
+          POSTGRES_PASSWORD: dummy
+        run: |
+          python - <<'PY'
+          import sys
+          from fastapi.testclient import TestClient
+          from app.main import app
+          c = TestClient(app, raise_server_exceptions=False)
+          # 401 proves the route exists and requires a token; 404 means it vanished.
+          for method, path in [("GET","/api/schema"), ("GET","/api/candidates"),
+                               ("POST","/api/admin/criteria"), ("POST","/api/scrape"),
+                               ("PUT","/api/admin/settings")]:
+              r = c.request(method, path, json={})
+              print(f"  {method} {path} -> {r.status_code}")
+              if r.status_code == 404:
+                  sys.exit(f"route missing: {method} {path}")
+              if r.status_code != 401:
+                  sys.exit(f"unauthenticated {method} {path} returned {r.status_code}, expected 401")
+          PY
+
+      - name: Seed produces a coherent schema
+        working-directory: server
+        env:
+          SCRAPINGBEE_API_KEY: dummy
+          ANTHROPIC_API_KEY: dummy
+          ALLOWED_EMAILS: ci@example.com
+          CORS_ORIGINS: http://localhost:8000
+          POSTGRES_PASSWORD: dummy
+        run: |
+          pip install aiosqlite
+          python - <<'PY'
+          import asyncio, sys
+          from sqlalchemy.dialects.postgresql import JSONB
+          from sqlalchemy.ext.compiler import compiles
+          @compiles(JSONB, "sqlite")
+          def _jsonb(t, c, **kw): return "JSON"
+          from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+          from app.models import Base
+          from app.seed import seed_user
+          from app.routes_schema import load_schema
+
+          async def main():
+              eng = create_async_engine("sqlite+aiosqlite:///:memory:")
+              async with eng.begin() as c:
+                  await c.run_sync(Base.metadata.create_all)
+              Sm = async_sessionmaker(eng, expire_on_commit=False)
+              async with Sm() as s:
+                  first = await seed_user(s, "u", "ci@example.com"); await s.commit()
+                  again = await seed_user(s, "u", "ci@example.com"); await s.commit()
+                  if not first or again:
+                      sys.exit("seeding is not idempotent")
+                  sch = await load_schema(s, "u")
+                  w = sum(c["weight"] for c in sch["criteria"] if c["scored"])
+                  pw = sum(p["weight"] for p in sch["places"])
+                  print(f"  {len(sch['categories'])} categories, {len(sch['criteria'])} criteria, "
+                        f"{len(sch['places'])} places, weight {w}+{pw}={w+pw}")
+                  if not sch["categories"] or not sch["criteria"]:
+                      sys.exit("seed produced an empty schema")
+                  orphans = [c["key"] for c in sch["criteria"] if not c["category_key"]]
+                  if orphans:
+                      sys.exit(f"criteria with no category: {orphans}")
+          asyncio.run(main())
+          PY
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+
+      - name: Extract the page script
+        run: |
+          python - <<'PY'
+          import re, sys
+          html = open("index.html", encoding="utf-8").read()
+          blocks = re.findall(r"<script>\n(.*?)\n</script>", html, re.S)
+          if not blocks:
+              sys.exit("no inline <script> block found — did the closing tag go missing?")
+          open("/tmp/page.js", "w", encoding="utf-8").write(blocks[-1])
+          print(f"  extracted {len(blocks[-1])} chars")
+          PY
+
+      - name: Syntax
+        run: node --check /tmp/page.js
+
+      - name: Undefined names
+        run: |
+          npm install --no-save eslint@8
+          npx eslint --no-eslintrc -c .eslintrc.page.json /tmp/page.js

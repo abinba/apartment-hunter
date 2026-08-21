@@ -12,7 +12,6 @@ import logging
 
 import httpx
 from jose import jwt
-from jose.utils import base64url_decode  # noqa: F401  (import validates the backend)
 from fastapi import HTTPException, Request
 
 log = logging.getLogger("auth")

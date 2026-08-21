@@ -11,8 +11,6 @@ import logging
 
 from anthropic import AsyncAnthropic
 
-from . import schema
-
 log = logging.getLogger("analyze")
 
 SYSTEM = (
