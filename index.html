@@ -28,6 +28,8 @@ input,select,textarea{font:inherit;color:inherit}
 .wrap{display:flex;gap:16px;padding:16px;align-items:flex-start;max-width:1560px;margin:0 auto}
 .col-list{flex:0 0 340px;position:sticky;top:16px}
 .col-form{flex:1;min-width:0}
+.col-scrapes{flex:0 0 270px;position:sticky;top:16px}
+.col-scrapes #sbJobs{max-height:calc(100vh - 150px);overflow:auto;scrollbar-width:thin}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
 h1{font-size:16px;margin:0;letter-spacing:-.2px;font-weight:750}
 .sub{color:var(--muted);font-size:11.5px;margin-top:1px}
@@ -252,9 +254,15 @@ table.wt input{width:64px;padding:3px 5px;border:1px solid var(--line);border-ra
   color:var(--ink)}
 .f label input[type=checkbox]{vertical-align:-1px}
 dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5px}
+@media(max-width:1240px){
+  .col-scrapes{flex:1 1 100%;position:static;order:3}
+  .col-scrapes #sbJobs{max-height:none;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+}
 @media(max-width:900px){
   .wrap{flex-direction:column;padding:9px;gap:9px}
   .col-list{position:static;flex:1;width:100%}
+  .col-scrapes{width:100%}
   .cands{max-height:44vh}
   .sect .body{grid-template-columns:1fr}
   header.top{position:sticky;top:0;z-index:20;padding:9px 10px;gap:6px}
@@ -321,16 +329,6 @@ dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5
 
 <div class="wrap">
   <div class="col-list">
-    <div class="card" id="sbPanel" style="display:none;margin-bottom:12px">
-      <div class="listhead">
-        <strong style="font-size:13px">Scrapes</strong>
-        <span class="tiny" id="sbCount"></span>
-        <div style="flex:1"></div>
-        <button class="btn sm" id="sbClear">Clear finished</button>
-      </div>
-      <div id="sbJobs"></div>
-    </div>
-
     <div class="card">
       <div class="listhead">
         <strong style="font-size:13px">Candidates</strong>
@@ -347,6 +345,18 @@ dialog .f code{background:#f1f4f7;border-radius:4px;padding:0 4px;font-size:11.5
     </div>
   </div>
   <div class="col-form" id="form"></div>
+
+  <div class="col-scrapes" id="sbPanel" style="display:none">
+    <div class="card">
+      <div class="listhead">
+        <strong style="font-size:13px">Scrapes</strong>
+        <span class="tiny" id="sbCount"></span>
+        <div style="flex:1"></div>
+        <button class="btn sm" id="sbClear">Clear</button>
+      </div>
+      <div id="sbJobs"></div>
+    </div>
+  </div>
 </div>
 
 <div id="printSheet"></div>
@@ -910,10 +920,13 @@ function importanceChip(imp){
 }
 
 function openAdmin(tab){
-  if(!ONLINE) return dialog("Admin unavailable", `<div class="note warn">
-    The schema lives on the server and it is not reachable right now, so nothing
-    can be edited. Scores and candidates are still readable from the local
-    cache.</div>`, [{label:"Close", primary:true}]);
+  if(!ONLINE){
+    if(LAST_ERROR) return showSyncProblem();
+    return dialog("Admin unavailable", `<div class="note warn">
+      Not connected to the server yet — sign in first. The schema lives in the
+      database, so there is nothing to edit until it loads.</div>`,
+      [{label:"Close", primary:true}]);
+  }
   ADMIN.tab = tab || ADMIN.tab;
   dialog("Admin", adminBody(), [{label:"Done", primary:true, act(){ render(); }}]);
   wireAdmin();
@@ -1563,6 +1576,9 @@ const FB_VERS = ["10.14.1", "11.0.2", "10.12.5"];
 const FB = {app:null, auth:null, uid:null, email:null, ready:false};
 const UI = {hiddenModes: []};
 let saveTimer = null, dirty = new Set();
+// The last failure, kept so the pill can explain itself rather than saying
+// "offline" for a 500, a CORS block and a dead network alike.
+let LAST_ERROR = null;
 
 function fbConf(){
   const c = Object.assign({}, CFG.firebase||{});
@@ -1574,6 +1590,42 @@ function setSync(state, text){
   const el = $("#syncPill"); if(!el) return;
   el.className = "sync" + (state ? " "+state : "");
   el.textContent = text;
+  el.style.cursor = state === "err" ? "pointer" : "";
+  el.title = state === "err" && LAST_ERROR
+    ? `${LAST_ERROR.status} on ${LAST_ERROR.path}\n${LAST_ERROR.message}\nClick to see details and retry.`
+    : "Sync status";
+  if(state === "ok" || state === "busy") LAST_ERROR = null;
+}
+
+function showSyncProblem(){
+  if(!LAST_ERROR){
+    dialog("Sync", `<div class="note">Everything is talking to the server normally.</div>`,
+      [{label:"Close", primary:true}]);
+    return;
+  }
+  const e = LAST_ERROR;
+  const hint =
+    e.status === "network"
+      ? `The browser could not reach the API at all. Usually one of: the server is down,
+         <code>apiBase</code> in config.js points somewhere wrong, or the origin
+         <code>${esc(location.origin)}</code> is missing from <code>CORS_ORIGINS</code>
+         in the server's .env.`
+    : e.status === 401 ? "The server rejected the sign-in token. Try signing out and back in."
+    : e.status === 403 ? `This account is not in <code>ALLOWED_EMAILS</code> on the server.`
+    : `The server returned an error. Check <code>docker compose logs scraper</code> —
+       the response body is below and the container log will have the traceback.`;
+  dialog("Could not load from the server", `
+    <div class="note warn">${hint}</div>
+    <table class="fieldtable">
+      <tr><td class="k">When</td><td class="v">${esc(e.when)}</td></tr>
+      <tr><td class="k">Request</td><td class="v mono">${esc(e.path)}</td></tr>
+      <tr><td class="k">Status</td><td class="v">${esc(String(e.status))}</td></tr>
+      <tr><td class="k">Message</td><td class="v">${esc(e.message)}</td></tr>
+      <tr><td class="k">Showing cached data</td><td class="v">${e.cached ? "yes" : "no"}</td></tr>
+    </table>
+    <div class="tiny" style="margin-top:10px">Editing is disabled while this persists, so a
+      change made here cannot be lost against a database it never reached.</div>`,
+    [{label:"Close"}, {label:"Retry now", primary:true, act: pullAll}]);
 }
 function uiWrite(){
   try{ localStorage.setItem("ah-ui", JSON.stringify(UI)); }catch(e){}
@@ -1631,16 +1683,24 @@ async function api(path, opts = {}){
   if(!API) throw new Error("no server configured — set apiBase in config.js");
   const tok = await idToken();
   if(!tok) throw new Error("sign in first");
-  const r = await fetch(API + path, Object.assign({}, opts, {
-    headers: Object.assign({"Content-Type":"application/json",
-                            "Authorization":"Bearer " + tok}, opts.headers||{})
-  }));
+  let r;
+  try{
+    r = await fetch(API + path, Object.assign({}, opts, {
+      headers: Object.assign({"Content-Type":"application/json",
+                              "Authorization":"Bearer " + tok}, opts.headers||{})
+    }));
+  }catch(netErr){
+    // fetch only rejects for network/CORS failures; everything else is a status
+    const e = new Error(`could not reach ${API + path} — ${netErr.message}`);
+    e.path = path; e.network = true;
+    throw e;
+  }
   let body = null;
   try{ body = await r.json(); }catch(e){}
   if(!r.ok){
     const d = body?.detail;
     const err = new Error(typeof d === "string" ? d : (d?.reason || `${r.status} ${r.statusText}`));
-    err.status = r.status; err.body = body;
+    err.status = r.status; err.body = body; err.path = path;
     throw err;
   }
   return body;
@@ -1699,8 +1759,16 @@ async function pullAll(){
   }catch(e){
     ONLINE = false; READONLY = true;
     const cached = cacheRead();
-    setSync("err", e.status === 403 ? "not allowed" : cached ? "offline — cached" : "offline");
-    console.warn("pull failed", e);
+    LAST_ERROR = {
+      when: new Date().toLocaleTimeString(),
+      path: e.path || "?", status: e.status || (e.network ? "network" : "?"),
+      message: e.message, cached
+    };
+    setSync("err", e.status === 403 ? "not allowed"
+                 : e.status === 401 ? "sign-in rejected"
+                 : e.status ? `server error ${e.status}`
+                 : "cannot reach server");
+    console.error("[apartment-hunter] load failed on " + (e.path||"?") + ":", e);
   }
   render();
 }
@@ -2126,6 +2194,7 @@ function renderJobs(){
   if(!host || !panel) return;
   const list = [...SB.jobs.values()].reverse();
   panel.style.display = list.length ? "" : "none";
+  document.body.classList.toggle("has-scrapes", list.length > 0);
   const live = list.filter(j=>j.stage!=="done" && j.stage!=="error").length;
   $("#sbCount").textContent = live ? `${live} running` : `${list.length} done`;
 
@@ -2173,17 +2242,25 @@ function applyScrape(job, s){
   const filled = [], skipped = [];
   for(const [k, v] of Object.entries(res)){
     if(v.value === null || v.value === undefined){ skipped.push(k); continue; }
-    c[k] = typeof v.value === "number" ? String(v.value) : v.value;
+    const val = typeof v.value === "number" ? String(v.value) : v.value;
+    // Answers live in c.answers and are read through ans(); writing c[k]
+    // directly puts them somewhere the form never looks.
+    setAns(c, k, val);
+    if(["address","link","notes"].includes(k)) c[k] = val;   // real columns too
     filled.push(k);
   }
+  c.scrape = {at: Date.now(), result: res,
+              text_result: s.text_result || null, photo_result: s.photo_result || null,
+              usage: s.usage || null};
   const L = s.listing || {};
   if(L.images?.length) c.photos = L.images;
   if(L.lat && !c.lat){ c.lat = L.lat; c.lon = L.lon; }
-  if(!c.address && L.title) c.address = L.title;
+  if(!c.address && L.title){ c.address = L.title; setAns(c, "address", L.title); }
   const bits = [`Scraped ${new Date().toLocaleString()} — ${filled.length} fields filled, `
                 + `${skipped.length} left blank.`];
   if(s.usage) bits.push(`Model tokens: ${s.usage.input_tokens} in / ${s.usage.output_tokens} out.`);
   c.notes = (c.notes === "Scraping…" ? "" : (c.notes ? c.notes + "\n\n" : "")) + bits.join(" ");
+  setAns(c, "notes", c.notes);
   touch(c); save();
   MAP.routeSig = null; MAP.fitted = false;
   if(MAP.ready) syncPins();
@@ -2246,6 +2323,7 @@ function showScrapeReport(c, s, filled, skipped){
 $("#lb").onclick = () => { $("#lb").style.display = "none"; };
 $("#sortBy").onchange = renderList;
 $("#bAdmin").onclick = () => openAdmin();
+$("#syncPill").onclick = () => { if(LAST_ERROR) showSyncProblem(); };
 $("#bKeys").onclick = setupDialog;
 document.addEventListener("keydown", e => { if(e.key==="Escape") $("#lb").style.display="none"; });
 
