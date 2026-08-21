@@ -13,7 +13,7 @@ of key/value pairs against those criteria, which is exactly what jsonb is for.
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (BigInteger, Boolean, DateTime, Float, ForeignKey, Index,
                         Integer, Numeric, String, Text, UniqueConstraint, func)
@@ -25,12 +25,29 @@ class Base(DeclarativeBase):
     pass
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class TimestampMixin:
+    """Timestamps generated in Python, not by the database.
+
+    `onupdate=func.now()` looks tidier but is a trap under asyncio: on an UPDATE
+    the new server-side value is not returned, so the attribute is left expired.
+    Touching it afterwards — as any serialiser does — triggers a lazy reload,
+    which is synchronous IO inside an async request. asyncpg refuses with
+    MissingGreenlet, and the write appears to fail even though it committed.
+
+    Setting the value in Python means it travels with the statement and is
+    already populated on the object. server_default stays as a backstop for rows
+    inserted outside the application.
+    """
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False)
+        DateTime(timezone=True), default=_utcnow,
+        server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(),
-        nullable=False)
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow,
+        server_default=func.now(), nullable=False)
 
 
 class User(Base, TimestampMixin):

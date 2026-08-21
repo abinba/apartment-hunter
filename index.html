@@ -786,8 +786,8 @@ function renderForm(){
       // these three are columns on the row, not answers — keep both in step
       if(["address","link","notes"].includes(el.dataset.k)) c[el.dataset.k] = el.value;
     };
-    el.addEventListener("input", ()=>{ write(); touch(c); save(); renderList(); refreshBox(); });
-    el.addEventListener("change",()=>{ write(); touch(c); save(); render(); });
+    el.addEventListener("input", ()=>{ write(); touch(c); save(c); renderList(); refreshBox(); });
+    el.addEventListener("change",()=>{ write(); touch(c); save(c); render(); });
   });
   $("#form").querySelectorAll("input[data-pl]").forEach(el=>{
     const upd = () => {
@@ -795,14 +795,14 @@ function renderForm(){
       const n = el.value==="" ? null : Number(el.value);
       if(n===null) delete c.travel[el.dataset.pl][el.dataset.mo];
       else c.travel[el.dataset.pl][el.dataset.mo] = n;
-      touch(c); save();
+      touch(c); save(c);
     };
     el.addEventListener("input", ()=>{ upd(); renderList(); refreshBox(); });
     el.addEventListener("change",()=>{ upd(); render(); });
   });
   $("#form").querySelectorAll(".seg,.rate").forEach(box=>{
     box.querySelectorAll("button").forEach(b=>{
-      b.onclick = () => { setAns(c, box.dataset.k, b.dataset.v); touch(c); save(); render(); };
+      b.onclick = () => { setAns(c, box.dataset.k, b.dataset.v); touch(c); save(c); render(); };
     });
   });
   $("#bDel").onclick = () => { if(!confirm("Delete this candidate?")) return;
@@ -902,7 +902,7 @@ function dialog(title, bodyHtml, buttons){
   $("#dlg").showModal();
 }
 $("#bNew").onclick = () => { const c = {id:uid(), added:Date.now(), photos:[], travel:{}};
-  touch(c); S.candidates.unshift(c); selId = c.id; save(); render();
+  touch(c); S.candidates.unshift(c); selId = c.id; save(c); render();
   setTimeout(()=>$("#form").querySelector('input[data-k="address"]')?.focus(), 30); };
 
 /* ---------------------------------------------------------- admin panel
@@ -1447,7 +1447,7 @@ async function calcTravel(c){
       say("geocoding…"); const city = (P().city||"").trim();
       const needsCity = city && !new RegExp(city.slice(0,4),"i").test(c.address);
       const g = await geocode(c.address + (needsCity ? ", "+city : ""));
-      c.lat = g.lat; c.lon = g.lng; touch(c); save();
+      c.lat = g.lat; c.lon = g.lng; touch(c); save(c);
     }
     c.travel = c.travel || {};
     const fails = [];
@@ -1463,11 +1463,11 @@ async function calcTravel(c){
         try{
           c.travel[p.key][m.mode] = await minutesBetween(
             {lat:c.lat,lng:c.lon}, {lat:p.lat,lng:p.lon}, m.mode, p);
-          touch(c); save();
+          touch(c); save(c);
         }catch(e){ fails.push(`${p.name} by ${MODES[m.mode]}: ${e.message}`); }
       }
     }
-    touch(c); save();
+    touch(c); save(c);
     MAP.routeSig = null; MAP.fitted = false;
     if(MAP.ready) await syncPins();
     render();
@@ -1501,7 +1501,7 @@ $("#bFetch").onclick = () => {
           const u = $("#urlIn").value.trim(); if(!u) return;
           const c = {id:uid(), added:Date.now(), link:u, photos:[], travel:{},
                      notes:"Queued — ask Claude to read this listing."};
-          S.candidates.unshift(c); selId = c.id; save(); render(); }}]);
+          S.candidates.unshift(c); selId = c.id; save(c); render(); }}]);
 };
 async function doFetch(){
   const url = $("#urlIn").value.trim(), msg = $("#fetchMsg");
@@ -1517,7 +1517,7 @@ async function doFetch(){
       {action:"javascript_exec", tabId, text:EXTRACTOR});
     const data = typeof out==="string" ? JSON.parse(out) : out;
     const c = Object.assign({id:uid(),added:Date.now(),photos:[],travel:{}}, data, {link:url});
-    S.candidates.unshift(c); selId = c.id; save(); render();
+    S.candidates.unshift(c); selId = c.id; save(c); render();
     msg.textContent = "Added."; setTimeout(()=>$("#dlg").close(), 800);
   }catch(e){ msg.innerHTML = `<span style="color:var(--bad)">Failed: ${esc(e.message)}</span>`; }
 }
@@ -1775,49 +1775,83 @@ async function pullAll(){
 
 /* --- writes -------------------------------------------------------------- */
 function touch(c){ if(c) c.updatedAt = Date.now(); }
-function save(){
+/* save(candidate) — always pass the row you touched.
+   It used to mark whatever was *selected* dirty, so a background write (the
+   auto-calculate after a scrape, or route drawing on another flat) flagged the
+   wrong row and the real edit was never sent. */
+function save(c){
   cacheWrite();
   if(READONLY){ setSync("err","read-only — server unreachable"); return; }
-  const c = S.candidates.find(x=>x.id===selId);
-  if(c) dirty.add(c.id);
+  const target = c || S.candidates.find(x=>x.id===selId);
+  if(target) dirty.add(target.id);
+  if(!dirty.size) return;
   setSync("busy","saving…");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flush, 900);
 }
 function saveLocal(){ cacheWrite(); }
 async function saveNow(c){
-  if(!c) return;
-  dirty.add(c.id);
+  if(c) dirty.add(c.id);
   await flush();
 }
+let flushing = false, retryTimer = null, retryDelay = 2000;
+
 async function flush(){
-  if(READONLY || !dirty.size) return;
-  const ids = [...dirty]; dirty.clear();
+  if(READONLY || flushing || !dirty.size) return;
+  flushing = true;
+  // Take them one at a time and only clear on success, so a failure halfway
+  // through cannot drop the rows that had not been sent yet.
+  const failed = [];
   try{
-    for(const id of ids){
+    for(const id of [...dirty]){
       const c = S.candidates.find(x=>x.id===id);
-      if(!c) continue;
-      await api("/api/candidates/"+encodeURIComponent(id),
-                {method:"PUT", body: JSON.stringify(toRow(c))});
+      if(!c){ dirty.delete(id); continue; }
+      try{
+        await api("/api/candidates/"+encodeURIComponent(id),
+                  {method:"PUT", body: JSON.stringify(toRow(c))});
+        dirty.delete(id);
+      }catch(e){
+        if(e.status === 409 && e.body?.detail?.current){
+          // Somebody else saved a newer version. Take theirs rather than
+          // overwrite it — silently losing an edit is worse than a surprise.
+          const row = fromRow(e.body.detail.current);
+          const i = S.candidates.findIndex(x=>x.id===row.id);
+          if(i >= 0) S.candidates[i] = row;
+          dirty.delete(id);
+          setSync("err","newer version on the server — reloaded");
+          render();
+          continue;
+        }
+        failed.push({id, e});
+        console.error("[apartment-hunter] save failed for " + id, e);
+      }
     }
-    cacheWrite();
+  } finally { flushing = false; }
+
+  cacheWrite();
+
+  if(!failed.length){
     setSync("ok","synced");
-  }catch(e){
-    if(e.status === 409 && e.body?.detail?.current){
-      // Somebody else saved a newer version of this flat. Take theirs rather
-      // than overwrite it, and say so — silently losing an edit is worse.
-      const row = fromRow(e.body.detail.current);
-      const i = S.candidates.findIndex(x=>x.id===row.id);
-      if(i >= 0) S.candidates[i] = row;
-      cacheWrite(); render();
-      setSync("err","newer version on the server — reloaded");
-      return;
-    }
-    ids.forEach(i=>dirty.add(i));
-    setSync("err","save failed");
-    console.error(e);
+    retryDelay = 2000;
+    return;
   }
+  // Anything still dirty is retried with backoff. Without this a failed save
+  // sat in the queue until some unrelated edit happened to trigger a flush,
+  // which is how a candidate ended up half-written to the database.
+  const first = failed[0].e;
+  LAST_ERROR = {when:new Date().toLocaleTimeString(), path:first.path || "PUT /api/candidates",
+                status:first.status || (first.network ? "network" : "?"),
+                message:first.message, cached:true};
+  setSync("err", `${failed.length} unsaved — retrying`);
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(flush, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, 30000);
 }
+
+/* Don't let a page close swallow pending edits silently. */
+window.addEventListener("beforeunload", e => {
+  if(dirty.size && !READONLY){ e.preventDefault(); e.returnValue = ""; }
+});
 
 async function removeCandidate(c){
   S.candidates = S.candidates.filter(x=>x.id!==c.id);
@@ -2078,7 +2112,7 @@ async function focusCandidate(c, animate = true){
     // Drawing routes is derived work. Persist it, but only schedule a push if a
     // value really changed — otherwise merely opening the page on a second
     // device would look like an edit and could win a merge it should lose.
-    if(c.updatedAt && Date.now() - c.updatedAt < 5000) save(); else saveLocal();
+    if(c.updatedAt && Date.now() - c.updatedAt < 5000) save(c); else saveLocal();
     document.querySelectorAll("input[data-pl]").forEach(el=>{
       const v = c.travel?.[el.dataset.pl]?.[el.dataset.mo];
       if(v!=null) el.value = v;
@@ -2156,7 +2190,7 @@ $("#bScrape").onclick = async () => {
     // Create the candidate up front so the row exists while the job runs.
     const c = {id:uid(), added:Date.now(), photos:[], travel:{}, link:url,
                address:"", notes:"Scraping…"};
-    touch(c); S.candidates.unshift(c); selId = c.id; save(); render();
+    touch(c); S.candidates.unshift(c); selId = c.id; save(c); render();
 
     const res = await api("/api/scrape", {method:"POST",
       body: JSON.stringify({url, candidate_id: c.id})});
@@ -2261,7 +2295,7 @@ function applyScrape(job, s){
   if(s.usage) bits.push(`Model tokens: ${s.usage.input_tokens} in / ${s.usage.output_tokens} out.`);
   c.notes = (c.notes === "Scraping…" ? "" : (c.notes ? c.notes + "\n\n" : "")) + bits.join(" ");
   setAns(c, "notes", c.notes);
-  touch(c); save();
+  touch(c); save(c);
   MAP.routeSig = null; MAP.fitted = false;
   if(MAP.ready) syncPins();
   render();

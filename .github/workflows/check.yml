@@ -124,6 +124,72 @@ jobs:
           asyncio.run(main())
           PY
 
+      - name: Writes survive being serialised after commit
+        working-directory: server
+        env:
+          SCRAPINGBEE_API_KEY: dummy
+          ANTHROPIC_API_KEY: dummy
+          ALLOWED_EMAILS: ci@example.com
+          CORS_ORIGINS: http://localhost:8000
+          POSTGRES_PASSWORD: dummy
+        run: |
+          python - <<'PY'
+          # A server-side onupdate leaves the attribute expired after an UPDATE.
+          # Touching it in the response serialiser then does lazy IO, which
+          # asyncpg rejects with MissingGreenlet — the write commits and the
+          # request still 500s. Covered here because it is invisible until the
+          # second save of a row.
+          import asyncio, sys
+          from sqlalchemy.dialects.postgresql import JSONB
+          from sqlalchemy.ext.compiler import compiles
+          @compiles(JSONB, "sqlite")
+          def _jsonb(t, c, **kw): return "JSON"
+          from sqlalchemy import select
+          from sqlalchemy.ext.asyncio import (create_async_engine,
+                                              async_sessionmaker, AsyncSession)
+          from app.models import Base, Candidate, Category, Criterion, Place
+          from app.routes_data import cand_json
+          from app.routes_schema import cat_json, crit_json, place_json
+          from app.seed import seed_user
+
+          async def main():
+              eng = create_async_engine("sqlite+aiosqlite:///:memory:")
+              async with eng.begin() as c:
+                  await c.run_sync(Base.metadata.create_all)
+              Sm = async_sessionmaker(eng, expire_on_commit=False, class_=AsyncSession)
+
+              async with Sm() as s:
+                  await seed_user(s, "u", "ci@example.com")
+                  s.add(Candidate(uid="u", ext_id="c1", photos=[], answers={"rent": "1"},
+                                  travel={}, client_updated_at=1787269734325))
+                  await s.commit()
+                  cand_json((await s.execute(select(Candidate))).scalar_one())
+                  print("  insert then serialise: ok")
+
+              # update then serialise — the path that failed in production
+              async with Sm() as s:
+                  row = (await s.execute(select(Candidate))).scalar_one()
+                  row.answers = {"rent": "2", "bedroom": "Yes"}
+                  await s.commit()
+                  j = cand_json(row)
+                  assert j["answers"]["bedroom"] == "Yes", "answers did not persist"
+                  print("  update then serialise: ok")
+
+              # every other serialiser, same pattern
+              async with Sm() as s:
+                  cat = (await s.execute(select(Category))).scalars().first()
+                  cat.title = "Renamed"
+                  crit = (await s.execute(select(Criterion))).scalars().first()
+                  crit.label = "Relabelled"
+                  pl = (await s.execute(select(Place))).scalars().first()
+                  pl.name = "Moved"
+                  await s.commit()
+                  cat_json(cat); crit_json(crit, cat.key); place_json(pl)
+                  print("  category/criterion/place serialise after update: ok")
+
+          asyncio.run(main())
+          PY
+
   javascript:
     runs-on: ubuntu-latest
     steps:
